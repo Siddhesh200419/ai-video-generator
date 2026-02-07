@@ -19,6 +19,7 @@ import {
   LucideFileVideo,
   Search,
   WalletCards,
+  Plus
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -50,39 +51,49 @@ function AppSidebar() {
   const path = usePathname();
   const { user } = useAuthContext();
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div>
-          <div className="flex items-center gap-3 w-full justify-center mt-5 ">
-            <Image src={"/logo.svg"} alt="logo" width={40} height={40} />
-            <h2 className="font-bold text-2xl">Video Gen</h2>
+    <Sidebar className="border-r border-border/50 bg-sidebar/50 backdrop-blur-xl">
+      <SidebarHeader className="pb-6">
+        <Link href="/" className="cursor-pointer">
+          <div className="flex items-center gap-3 w-full justify-start px-4 mt-6 mb-2 hover:opacity-80 transition-opacity">
+            <div className="relative w-8 h-8">
+              <Image src={"/logo.svg"} alt="logo" fill className="object-contain" />
+            </div>
+            <h2 className="font-bold text-xl tracking-tight text-foreground">Video Gen</h2>
           </div>
-          <h2 className="text-lg text-gray-400 text-center mt-3 ">
-            AI Short Video Generator
-          </h2>
-        </div>
+          <p className="text-xs text-muted-foreground px-4 font-medium tracking-wide uppercase opacity-70">
+            AI Video Generator
+          </p>
+        </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="px-2">
         <SidebarGroup>
           <SidebarGroupContent>
-            <div className="mx-3 mt-10">
+            <div className="mx-2 mb-6">
               <Link href={"/create-new-video"}>
-                <Button className="w-full">Create New Video</Button>
+                <Button className="w-full shadow-md hover:shadow-primary/20 transition-all font-medium h-10">
+                   <Plus className="mr-2 h-4 w-4" /> New Video
+                </Button>
               </Link>
             </div>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {MenuItems.map((menu, index) => (
-                <SidebarMenuItem className="mt-3 mx-3" key={index}>
+                <SidebarMenuItem key={index}>
                   <SidebarMenuButton
+                    asChild
                     isActive={path == menu.url}
-                    className="p-5"
+                    className={`
+                      w-full justify-start h-10 px-3 rounded-lg transition-all duration-200 group
+                      ${path == menu.url 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
+                    `}
                   >
                     <Link
                       href={menu?.url}
-                      className="flex items-center gap-4 p-3"
+                      className="flex items-center gap-3"
                     >
-                      <menu.icon />
-                      <span>{menu?.title}</span>
+                      <menu.icon className={`h-4 w-4 transition-colors ${path == menu.url ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                      <span className="text-sm">{menu?.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -92,14 +103,23 @@ function AppSidebar() {
         </SidebarGroup>
         <SidebarGroup />
       </SidebarContent>
-      <SidebarFooter>
-        <div className="p-5 border rounded-lg mb-6 bg-gray-800">
-          <div className="flex items-center justify-between ">
-            <Gem className="text-gray-400" />
-            <h2 className="text-gray-400">{user?.credits} Credits Left</h2>
+      <SidebarFooter className="p-4">
+        <div className="p-4 rounded-xl bg-card border border-border/50 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+               <div className="p-1.5 bg-primary/10 rounded-full">
+                  <Gem className="h-3.5 w-3.5 text-primary" />
+               </div>
+               <span className="text-xs font-medium text-muted-foreground">Credits</span>
+            </div>
+            <span className="text-sm font-bold text-foreground">{user?.credits || 0}</span>
+          </div>
+          
+          <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mb-3">
+             <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min((user?.credits || 0) / 100 * 100, 100)}%` }}></div>
           </div>
 
-          <Button className="w-full mt-3">Buy More Credits</Button>
+          <Button variant="outline" size="sm" className="w-full text-xs h-8 hover:bg-primary hover:text-primary-foreground border-primary/20 hover:border-primary transition-colors">Buy Credits</Button>
         </div>
       </SidebarFooter>
     </Sidebar>

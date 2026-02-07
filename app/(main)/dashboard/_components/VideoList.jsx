@@ -3,7 +3,7 @@ import { useAuthContext } from "@/app/provider";
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { useConvex } from "convex/react";
-import { RefreshCcw } from "lucide-react";
+import { Play, Clock } from "lucide-react";
 import moment from "moment";
 import Image from "next/image";
 import Link from "next/link";
@@ -47,40 +47,48 @@ function VideoList() {
   return (
     <div>
       {videoList?.length === 0 ? (
-        <div className="flex flex-col items-center justify-center mt-28 gap-5 p-5 border border-dashed rounded-xl py-16">
-          <Image src={"/logo.svg"} alt="logo" width={60} height={60} />
-          <h2 className="text-gray-400 text-lg">
-            You don't have created any video. Create new one.
+        <div className="flex flex-col items-center justify-center mt-20 gap-5 p-10 border border-dashed border-border rounded-xl bg-card/50">
+          <Image src={"/logo.svg"} alt="logo" width={60} height={60} className="opacity-50 grayscale" />
+          <h2 className="text-muted-foreground text-lg font-medium">
+            You haven't created any videos yet.
           </h2>
           <Link href={"/create-new-video"}>
-            <Button>+Create New Video</Button>
+            <Button size="lg" className="shadow-md">Create New Video</Button>
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 mt-10">
           {videoList?.map((video, index) => (
-            <Link key={index} href={video?._id ? `/play-video/${video._id}` : '#'}>
-
-              <div className="relative">
-                {/* {video?.status == "completed" ? ( */}
-                <img
-                  src={video?.images[0]}
-                  alt={video?.title}
-                  width={500}
-                  height={500}
-                  className="w-full object-cover rounded-xl aspect-[2/3]"
-                />
-                {/* ) : (
-                  <div className="aspect-[2/3] p-5 w-full rounded-xl bg-slate-900 flex items-center justify-center">
-                    <RefreshCcw className="animate-spin" />
-                    <h2>Generating...</h2>
-                  </div> */}
-                {/* )} */}
-                <div className="absolute bottom-3 px-5 w-full">
-                  <h2>{video?.title}</h2>
-                  <h2 className="text-sm">
-                    {moment(video?._creationTime).fromNow()}
-                  </h2>
+            <Link key={index} href={video?._id ? `/play-video/${video._id}` : '#'} className="group block">
+              <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm transition-all duration-300 hover:shadow-xl hover:border-primary/20 hover:-translate-y-1">
+                {/* Image Container */}
+                <div className="relative aspect-[2/3] overflow-hidden">
+                  <img
+                    src={video?.images[0]}
+                    alt={video?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-80" />
+                  
+                  {/* Play Button Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full border border-white/30">
+                      <Play className="w-6 h-6 text-white fill-white" />
+                    </div>
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="absolute bottom-0 w-full p-4 text-white">
+                    <h3 className="font-semibold text-lg leading-tight line-clamp-1 mb-1 group-hover:text-primary-foreground transition-colors">
+                      {video?.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-gray-300/90 font-medium">
+                      <Clock className="w-3 h-3" />
+                      <span>{moment(video?._creationTime).fromNow()}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Link>
