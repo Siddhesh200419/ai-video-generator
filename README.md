@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🎥 AI YouTube Short Video Generator
 
-## Getting Started
+**An intelligent SaaS application that transforms ideas into engaging YouTube Shorts using the power of AI.**
 
-First, run the development server:
+This project leverages cutting-edge AI models to automate the entire video creation process—from scriptwriting and voiceovers to image generation and video editing.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## ✨ Key Features
+
+-   **🤖 AI Script Generation**: Automatically writes creative and engaging scripts for your videos using **Google Gemini**.
+-   **🎨 AI Image Generation**: Creates stunning, cinematic visuals for every scene using advanced image models (e.g., SDXL/Flux via APIs).
+-   **🗣️ Realistic Voiceovers**: Converts text to natural-sounding speech.
+-   **📝 Auto-Captions**: Generates and overlays accurate subtitles using **Deepgram**.
+-   **🎬 Automated Editing**: Stitches audio, images, and captions together into a polished video using **Remotion**.
+-   **🔐 Secure Authentication**: Integrated user login and signup via **Firebase Auth**.
+-   **💾 Real-time Database**: Powered by **Convex** for fast and reliable data storage.
+-   **⚡ Background Processing**: Handles complex video rendering tasks efficiently with **Inngest**.
+
+---
+
+## 🛠️ Technology Stack
+
+-   **Frontend**: Next.js 15 (App Router), React, Tailwind CSS, Shadcn UI
+-   **Backend**: Convex (Serverless Database & Functions)
+-   **Authentication**: Firebase Auth
+-   **AI & ML**:
+    -   Google Gemini (Script & Prompts)
+    -   Deepgram (Transcription/Captions)
+    -   AI Guru Lab (Image/Audio APIs)
+-   **Video Engine**: Remotion
+-   **Infrastructure**: Inngest (Event-driven queues)
+
+---
+
+## 🚀 How It Works
+
+1.  **Topic Input**: You provide a topic (e.g., "The History of Mars", "Scary Campfire Story").
+2.  **Script Creation**: The AI generates a structured script with scenes and dialogue.
+3.  **Media Generation**:
+    -   Voiceover audio is generated from the script.
+    -   Visual prompts are created and sent to the image generation API.
+    -   Captions are extracted from the audio.
+4.  **Assembly**: The **Remotion** engine combines the audio, images, and captions into a single MP4 video file.
+5.  **Result**: You can preview and download the final video.
+
+---
+
+## ⚙️ Setup & Installation
+
+**Want to run this project locally?**
+
+👉 **[Click here for the detailed SETUP.md guide](./SETUP.md)**
+
+The setup guide covers:
+-   Prerequisites (Node.js, API Keys)
+-   Installation Steps
+-   Environment Variable Configuration
+-   Running the Dev Server
+
+---
+
+## 📂 Project Structure
+
+```
+├── app/                  # Next.js App Router (Frontend Pages & API)
+│   ├── (main)/           # Dashboard & Core App Routes
+│   ├── api/              # API Routes (Inngest, Generators)
+├── convex/               # Backend Schema & Functions
+├── remotion/             # Video Composition & Rendering Logic
+├── components/           # UI Components (Shadcn UI)
+├── config/               # Configuration (Firebase, AI Models)
+├── inngest/              # Background Job Definitions
+└── public/               # Static Assets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🤝 Contributing
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Contributions are welcome! Please feel free to submit a Pull Request.
