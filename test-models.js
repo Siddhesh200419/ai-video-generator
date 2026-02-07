@@ -2,7 +2,7 @@ const {
     GoogleGenerativeAI,
 } = require("@google/generative-ai");
 
-const apiKey = "AIzaSyAWj4nspoWwQ7Ot-rjZuDV3EIuDK5Wm9U0";
+const apiKey = "Your-API-Key";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 async function test(name) {
