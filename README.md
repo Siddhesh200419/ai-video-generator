@@ -1,25 +1,25 @@
-# 🎥 AI YouTube Short Video Generator
+# AI YouTube Short Video Generator
 
-**An intelligent SaaS application that transforms ideas into engaging YouTube Shorts using the power of AI.**
+** An intelligent SaaS application that transforms ideas into engaging YouTube Shorts using the power of AI.**
 
 This project leverages cutting-edge AI models to automate the entire video creation process—from scriptwriting and voiceovers to image generation and video editing.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
--   **🤖 AI Script Generation**: Automatically writes creative and engaging scripts for your videos using **Google Gemini**.
--   **🎨 AI Image Generation**: Creates stunning, cinematic visuals for every scene using advanced image models (e.g., SDXL/Flux via APIs).
--   **🗣️ Realistic Voiceovers**: Converts text to natural-sounding speech.
--   **📝 Auto-Captions**: Generates and overlays accurate subtitles using **Deepgram**.
--   **🎬 Automated Editing**: Stitches audio, images, and captions together into a polished video using **Remotion**.
--   **🔐 Secure Authentication**: Integrated user login and signup via **Firebase Auth**.
--   **💾 Real-time Database**: Powered by **Convex** for fast and reliable data storage.
--   **⚡ Background Processing**: Handles complex video rendering tasks efficiently with **Inngest**.
+-   **AI Script Generation**: Automatically writes creative and engaging scripts for your videos using **Google Gemini**.
+-   **AI Image Generation**: Creates stunning, cinematic visuals for every scene using advanced image models (e.g., SDXL/Flux via APIs).
+-   **Realistic Voiceovers**: Converts text to natural-sounding speech.
+-   **Auto-Captions**: Generates and overlays accurate subtitles using **Deepgram**.
+-   **Automated Editing**: Stitches audio, images, and captions together into a polished video using **Remotion**.
+-   **Secure Authentication**: Integrated user login and signup via **Firebase Auth**.
+-   **Real-time Database**: Powered by **Convex** for fast and reliable data storage.
+-   **Background Processing**: Handles complex video rendering tasks efficiently with **Inngest**.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 -   **Frontend**: Next.js 15 (App Router), React, Tailwind CSS, Shadcn UI
 -   **Backend**: Convex (Serverless Database & Functions)
@@ -33,7 +33,7 @@ This project leverages cutting-edge AI models to automate the entire video creat
 
 ---
 
-## 🚀 How It Works
+## How It Works
 
 1.  **Topic Input**: You provide a topic (e.g., "The History of Mars", "Scary Campfire Story").
 2.  **Script Creation**: The AI generates a structured script with scenes and dialogue.
@@ -46,11 +46,11 @@ This project leverages cutting-edge AI models to automate the entire video creat
 
 ---
 
-## ⚙️ Setup & Installation
+## Setup & Installation
 
 **Want to run this project locally?**
 
-👉 **[Click here for the detailed SETUP.md guide](./SETUP.md)**
+**[Click here for the detailed SETUP.md guide](./SETUP.md)**
 
 The setup guide covers:
 -   Prerequisites (Node.js, API Keys)
@@ -60,7 +60,7 @@ The setup guide covers:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 ├── app/                  # Next.js App Router (Frontend Pages & API)
@@ -74,6 +74,6 @@ The setup guide covers:
 └── public/               # Static Assets
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
