@@ -18,7 +18,7 @@ function RemotionComposition({ videoData, setDurationInFrame }) {
   const style = videoData?.caption?.style;
 
   useEffect(() => {
-    if (captions && captions.length > 0 && fps) {
+    if (captions && captions.length > 0 && fps && typeof setDurationInFrame === "function") {
       const totalDuration = captions[captions.length - 1]?.end * fps;
       setDurationInFrame(totalDuration);
     }

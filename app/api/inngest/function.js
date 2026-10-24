@@ -1,9 +1,10 @@
+import { db } from "@/configs/db";
+import { videoData } from "@/configs/schema";
 import { GenerateImageScript } from "@/config/AiModel";
-import { api } from "@/convex/_generated/api";
 import { inngest } from "@/inngest/client";
-import { createClient } from "@deepgram/sdk"; // ✅ updated import
+import { createClient } from "@deepgram/sdk";
+import { eq } from "drizzle-orm";
 import axios from "axios";
-import { ConvexHttpClient } from "convex/browser";
 import {
   getFunctions,
   renderMediaOnLambda,
@@ -36,68 +37,59 @@ export const helloWorld = inngest.createFunction(
 const BASE_URL = "https://aigurulab.tech";
 
 export const GenerateVideoData = inngest.createFunction(
-  { id: "generate-video-data" },
+  {
+    id: "generate-video-data",
+    retries: 2,
+  },
   { event: "generate-video-data" },
   async ({ event, step }) => {
     const { script, topic, title, caption, videoStyle, voice, recordId } =
       event?.data;
-    const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
-    // Generate Audio File MP3
+
+    // Step 1: Generate Audio File
     const GenerateAudioFile = await step.run("GenerateAudioFile", async () => {
       const result = await axios.post(
         BASE_URL + "/api/text-to-speech",
-        {
-          input: script,
-          voice: voice,
-        },
+        { input: script, voice: voice },
         {
           headers: {
-            "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY, // Your API Key
-            "Content-Type": "application/json", // Content Type
+            "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY,
+            "Content-Type": "application/json",
           },
         },
       );
-      console.log(result.data.audio); //Output Result: Audio Mp3 Url
+      console.log("Audio URL:", result.data.audio);
       return result.data.audio;
     });
 
-    // Generate Captions
+    // Step 2: Generate Captions
     const GenerateCaptions = await step.run("generateCaptions", async () => {
-      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY); // ✅ updated client
+      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
       const { result, error } = await deepgram.listen.prerecorded.transcribeUrl(
-        {
-          url: GenerateAudioFile,
-        },
-        {
-          model: "nova-3",
-        },
+        { url: GenerateAudioFile },
+        { model: "nova-3" },
       );
+      if (error) throw new Error(`Deepgram error: ${error.message}`);
       return result.results?.channels[0]?.alternatives[0]?.words;
     });
 
-    // Generate Image Prompt from Script
+    // Step 3: Generate Image Prompts
     const GenerateImagePrompts = await step.run(
       "generateImagePrompt",
       async () => {
-        const FINAL_PROMPT = ImagePromptScript.replace(
-          "{style}",
-          videoStyle,
-        ).replace("{script}", script);
+        const FINAL_PROMPT = ImagePromptScript.replace("{style}", videoStyle).replace("{script}", script);
         const result = await GenerateImageScript.sendMessage(FINAL_PROMPT);
         const respText = result.response.text();
-        // Clean JSON
         const jsonStart = respText.indexOf("[");
         const jsonEnd = respText.lastIndexOf("]") + 1;
         const cleanJSON = respText.slice(jsonStart, jsonEnd);
-        const resp = JSON.parse(cleanJSON);
-
-        return resp;
+        return JSON.parse(cleanJSON);
       },
     );
-    // Generate Images using AI
+
+    // Step 4: Generate Images
     const GenerateImages = await step.run("generateImages", async () => {
-      let images = [];
-      images = await Promise.all(
+      const images = await Promise.all(
         GenerateImagePrompts.map(async (element) => {
           const result = await axios.post(
             BASE_URL + "/api/generate-image",
@@ -105,34 +97,37 @@ export const GenerateVideoData = inngest.createFunction(
               width: 1024,
               height: 1024,
               input: element?.imagePrompt,
-              model: "sdxl", //'flux'
-              aspectRatio: "1:1", //Applicable to Flux model only
+              model: "sdxl",
+              aspectRatio: "1:1",
             },
             {
               headers: {
-                "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY, // Your API Key
-                "Content-Type": "application/json", // Content Type
+                "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY,
+                "Content-Type": "application/json",
               },
             },
           );
-          console.log(result.data.image);
+          console.log("Image URL:", result.data.image);
           return result.data.image;
         }),
       );
       return images;
     });
 
-    // Save all data to database
-    const UpdateDB = await step.run("UpdateDB", async () => {
-      const result = await convex.mutation(api.videoData.UpdateVideoRecord, {
-        recordId: recordId,
-        audioUrl: GenerateAudioFile,
-        captionJson: GenerateCaptions,
-        images: GenerateImages,
-      });
-      return result;
+    // Step 5: Save audio + images to Neon (status = generating)
+    await step.run("UpdateDB", async () => {
+      await db
+        .update(videoData)
+        .set({
+          audioUrl: GenerateAudioFile,
+          captionJson: GenerateCaptions,
+          images: GenerateImages,
+          status: "generating",
+        })
+        .where(eq(videoData.id, recordId));
     });
 
+    // Step 6: Render video via Remotion Lambda
     const RenderVideo = await step.run("RenderVideo", async () => {
       const services = await getFunctions({
         region: "us-east-1",
@@ -147,61 +142,61 @@ export const GenerateVideoData = inngest.createFunction(
         serveUrl: process.env.AWS_SERVE_URL,
         composition: "youtubeShort",
         inputProps: {
-            videoData:{
-                audioUrl: GenerateAudioFile,
-                captionJson: GenerateCaptions,
-                images: GenerateImages,
-            }
+          videoData: {
+            audioUrl: GenerateAudioFile,
+            captionJson: GenerateCaptions,
+            images: GenerateImages,
+            caption,
+          },
         },
         codec: "h264",
         imageFormat: "jpeg",
         maxRetries: 1,
-        framesPerLambda: 20,
+        concurrency: 4,
         privacy: "public",
       });
 
       return { renderId, bucketName, functionName };
     });
 
-    const UpdateDownloadUrl = await step.run("UpdateDownloadUrl", async () => {
-      try {
-        let progress;
-        do {
-          progress = await getRenderProgress({
-            region: "us-east-1",
-            renderId: RenderVideo.renderId,
-            bucketName: RenderVideo.bucketName,
-            functionName: RenderVideo.functionName,
-          });
-          if (!progress.done) {
-            await step.sleep("wait-progress", "10s");
-          }
-        } while (!progress.done && !progress.fatalErrorEncountered);
-
-        if (progress.fatalErrorEncountered) {
-          throw new Error(
-            `Render failed: ${JSON.stringify(progress.errors ?? [])}`,
-          );
-        }
-
-        const downloadUrl =
-          progress.outputFile ??
-          `https://${RenderVideo.bucketName}.s3.us-east-1.amazonaws.com/${progress.outKey}`;
-
-        const result = await convex.mutation(api.videoData.UpdateVideoRecord, {
-          recordId: recordId,
-          audioUrl: GenerateAudioFile,
-          captionJson: GenerateCaptions,
-          images: GenerateImages,
-          downloadUrl,
+    // Step 7: Poll render progress + save download URL (status = completed)
+    await step.run("UpdateDownloadUrl", async () => {
+      let progress;
+      do {
+        progress = await getRenderProgress({
+          region: "us-east-1",
+          renderId: RenderVideo.renderId,
+          bucketName: RenderVideo.bucketName,
+          functionName: RenderVideo.functionName,
         });
-        return result;
-      } catch (error) {
-        console.error("Error updating download URL:", error);
-        throw error;
+        if (!progress.done) {
+          await new Promise((r) => setTimeout(r, 10000));
+        }
+      } while (!progress.done && !progress.fatalErrorEncountered);
+
+      if (progress.fatalErrorEncountered) {
+        await db
+          .update(videoData)
+          .set({
+            status: "failed",
+            errorMessage: JSON.stringify(progress.errors ?? []),
+          })
+          .where(eq(videoData.id, recordId));
+        throw new Error(`Render failed: ${JSON.stringify(progress.errors ?? [])}`);
       }
+
+      const downloadUrl =
+        progress.outputFile ??
+        `https://${RenderVideo.bucketName}.s3.us-east-1.amazonaws.com/${progress.outKey}`;
+
+      await db
+        .update(videoData)
+        .set({ downloadUrl, status: "completed" })
+        .where(eq(videoData.id, recordId));
+
+      return downloadUrl;
     });
 
-    return "Executed Sucessfully!!";
+    return "Executed Successfully!";
   },
 );
