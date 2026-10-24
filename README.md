@@ -8,21 +8,21 @@ This project leverages cutting-edge AI models to automate the entire video creat
 
 ## Key Features
 
--   **AI Script Generation**: Automatically writes creative and engaging scripts for your videos using **Google Gemini**.
--   **AI Image Generation**: Creates stunning, cinematic visuals for every scene using advanced image models (e.g., SDXL/Flux via APIs).
--   **Realistic Voiceovers**: Converts text to natural-sounding speech.
--   **Auto-Captions**: Generates and overlays accurate subtitles using **Deepgram**.
--   **Automated Editing**: Stitches audio, images, and captions together into a polished video using **Remotion**.
--   **Secure Authentication**: Integrated user login and signup via **Firebase Auth**.
--   **Real-time Database**: Powered by **Convex** for fast and reliable data storage.
--   **Background Processing**: Handles complex video rendering tasks efficiently with **Inngest**.
+-   ** AI Script Generation**: Automatically writes creative and engaging scripts for your videos using **Google Gemini**.
+-   **🎨 AI Image Generation**: Creates stunning, cinematic visuals for every scene using advanced image models (e.g., SDXL/Flux via APIs).
+-   **🗣️ Realistic Voiceovers**: Converts text to natural-sounding speech.
+-   **📝 Auto-Captions**: Generates and overlays accurate subtitles using **Deepgram**.
+-   **🎬 Automated Editing**: Stitches audio, images, and captions together into a polished video using **Remotion**.
+-   **🔐 Secure Authentication**: Integrated user login and signup via **Firebase Auth**.
+-   **💾 Real-time Database**: Powered by **Convex** for fast and reliable data storage.
+-   **⚡ Background Processing**: Handles complex video rendering tasks efficiently with **Inngest**.
 
 ---
 
 ## Technology Stack
 
 -   **Frontend**: Next.js 15 (App Router), React, Tailwind CSS, Shadcn UI
--   **Backend**: Convex (Serverless Database & Functions)
+-   **Database & ORM**: Neon Serverless PostgreSQL, Drizzle ORM
 -   **Authentication**: Firebase Auth
 -   **AI & ML**:
     -   Google Gemini (Script & Prompts)
@@ -65,8 +65,8 @@ The setup guide covers:
 ```
 ├── app/                  # Next.js App Router (Frontend Pages & API)
 │   ├── (main)/           # Dashboard & Core App Routes
-│   ├── api/              # API Routes (Inngest, Generators)
-├── convex/               # Backend Schema & Functions
+│   ├── api/              # API Routes (Inngest, Generators, Users, Videos)
+├── configs/              # Database Connection & Drizzle Schema
 ├── remotion/             # Video Composition & Rendering Logic
 ├── components/           # UI Components (Shadcn UI)
 ├── config/               # Configuration (Firebase, AI Models)

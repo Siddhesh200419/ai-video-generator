@@ -7,17 +7,12 @@ import Captions from "./_components/Captions";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, WandSparkles } from "lucide-react";
 import Preview from "./_components/Preview";
-import axios from "axios";
-import { useMutation } from "convex/react";
 import { useAuthContext } from "@/app/provider";
-import { api } from "@/convex/_generated/api";
-import { v } from "convex/values";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 function CreateNewVideo() {
   const [formData, setFormData] = useState();
-  const CreateInitialVideoRecord = useMutation(api.videoData.CreateVideoData);
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -47,28 +42,35 @@ function CreateNewVideo() {
       return;
     }
     setLoading(true);
-    //Save video data first
-    const resp = await CreateInitialVideoRecord({
-      title: formData.title,
-      topic: formData.topic,
-      script: formData.script,
-      videoStyle: formData.videoStyle,
-      caption: formData.caption,
-      voice: formData.voice,
-      uid: user?._id,
-      createdBy: user?.email,
-      credits: user?.credits ?? 0, // example fallback if user credits is undefined
+    // POST to /api/generate-video-data
+    // This route atomically: checks credits, inserts video record,
+    // deducts 1 credit, and dispatches the Inngest background job.
+    const resp = await fetch("/api/generate-video-data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: formData.title,
+        topic: formData.topic,
+        script: formData.script,
+        videoStyle: formData.videoStyle,
+        caption: formData.caption,
+        voice: formData.voice,
+        uid: user?.id,
+        createdBy: user?.email,
+      }),
     });
 
-    console.log(resp);
+    if (!resp.ok) {
+      const err = await resp.json();
+      toast.error(err?.error ?? "Failed to create video");
+      setLoading(false);
+      return;
+    }
 
-    const result = await axios.post("/api/generate-video-data", {
-      ...formData,
-      recordId: resp,
-    });
-    console.log(result);
+    const result = await resp.json();
+    console.log("Video created:", result);
     setLoading(false);
-    toast("Video generation started!");
+    toast.success("Video generation started!");
     router.push("/dashboard");
   };
   return (

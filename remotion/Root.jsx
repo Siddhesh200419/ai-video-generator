@@ -1,8 +1,6 @@
 import React from "react";
-import { MyComposition } from "./Composition";
 import { Composition } from "remotion";
-import RemotionComposition from "./../app/_components/RemotionComposition";
-
+import RemotionComposition from "../app/_components/RemotionComposition";
 
 export const RemotionRoot = () => {
   return (

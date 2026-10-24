@@ -1,36 +1,40 @@
-"use client"
-import React, { useContext, useEffect, useState } from 'react'
+﻿"use client"
+import React, { useContext, useEffect, useState } from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/config/firebaseConfig'
-import { AuthContext } from '@/_context/Authcontext'
-import { ConvexProvider, ConvexReactClient, useMutation } from "convex/react";
-import { api } from '@/convex/_generated/api'
+import { onAuthStateChanged } from "firebase/auth"
+import { auth } from "@/config/firebaseConfig"
+import { AuthContext } from "@/_context/Authcontext"
 
 function Provider({ children }) {
 
     const [user, setUser] = useState();
-    const createUser = useMutation(api.users.CreateNewUser);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            console.log(user);
-            if (user) {
-                const result = await createUser({
-                    name: user?.displayName,
-                    email: user?.email,
-                    pictureURL: user?.photoURL
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                // Upsert user in Neon via our new API route
+                const resp = await fetch("/api/user", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: firebaseUser?.displayName,
+                        email: firebaseUser?.email,
+                        pictureURL: firebaseUser?.photoURL,
+                    }),
                 });
-                console.log(result)
+                const result = await resp.json();
+                console.log("User synced:", result);
                 setUser(result);
+            } else {
+                setUser(null);
             }
-        })
+        });
         return () => unsubscribe();
-    }, [])
+    }, []);
+
     return (
         <div>
-
-            <AuthContext.Provider value={{ user }}>
+            <AuthContext.Provider value={{ user, setUser }}>
                 <NextThemesProvider
                     attribute="class"
                     defaultTheme="dark"
@@ -39,13 +43,13 @@ function Provider({ children }) {
                     {children}
                 </NextThemesProvider>
             </AuthContext.Provider>
-
         </div>
-    )
+    );
 }
+
 export const useAuthContext = () => {
     const context = useContext(AuthContext);
     return context;
-}
+};
 
-export default Provider
+export default Provider;
