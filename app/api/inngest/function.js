@@ -11,18 +11,27 @@ import {
   getRenderProgress,
 } from "@remotion/lambda/client";
 
-const ImagePromptScript = `Generate image prompts for a {style} style video based on the following script. 
-- Break the script into 4-5 meaningful scenes.
-- For each scene, provide a unique sceneContent summarizing that specific scene.
-- For each scene, give an image prompt that visually represents that scene based on the storyline.
-- Do not include camera angles in the image prompt.
+const ImagePromptScript = `You are a visual director creating image prompts for an AI video generator.
+Video Visual Style: {style}
+Video Topic: {topic}
 
-Follow this JSON format strictly:
+The spoken voiceover script of the video is:
+"""
+{script}
+"""
+
+Instructions:
+1. Divide the script chronologically into exactly 4 to 5 distinct sequential scenes that visually narrate the entire story from start to finish.
+2. For each scene, write a highly descriptive and visually evocative image prompt tailored for SDXL image generation.
+3. Every prompt MUST directly illustrate the specific events, characters, environment, lighting, and mood described in that scene of the script.
+4. Integrate the aesthetic details of "{style}" style (e.g. textures, color palette, lighting atmosphere).
+5. DO NOT include any text, letters, watermarks, speech bubbles, camera angles (no "wide angle", "close-up"), or meta instructions in the image prompt. Describe purely the visual elements of the scene itself.
+6. Return STRICTLY a valid JSON array matching this format:
 [
-    {
-        imagePrompt: '',
-        sceneContent: ''
-    }
+  {
+    "sceneContent": "Brief 1-sentence summary of the scene from the script",
+    "imagePrompt": "Detailed visual description of the scene in {style} style..."
+  }
 ]`;
 
 export const helloWorld = inngest.createFunction(
@@ -77,40 +86,56 @@ export const GenerateVideoData = inngest.createFunction(
     const GenerateImagePrompts = await step.run(
       "generateImagePrompt",
       async () => {
-        const FINAL_PROMPT = ImagePromptScript.replace("{style}", videoStyle).replace("{script}", script);
+        const FINAL_PROMPT = ImagePromptScript
+          .replace(/{style}/g, videoStyle || "Cinematic")
+          .replace(/{topic}/g, topic || "Topic")
+          .replace(/{script}/g, script);
+
+        console.log("[generateImagePrompt] Requesting prompts for script...");
         const result = await GenerateImageScript.sendMessage(FINAL_PROMPT);
-        const respText = result.response.text();
+        const respText = await result.response.text();
         const jsonStart = respText.indexOf("[");
         const jsonEnd = respText.lastIndexOf("]") + 1;
+        if (jsonStart === -1 || jsonEnd === -1) {
+          throw new Error("Invalid image prompts JSON response: " + respText);
+        }
         const cleanJSON = respText.slice(jsonStart, jsonEnd);
-        return JSON.parse(cleanJSON);
+        const parsed = JSON.parse(cleanJSON);
+        console.log(`[generateImagePrompt] Generated ${parsed.length} scene image prompts.`);
+        return parsed;
       },
     );
 
     // Step 4: Generate Images
     const GenerateImages = await step.run("generateImages", async () => {
-      const images = await Promise.all(
-        GenerateImagePrompts.map(async (element) => {
-          const result = await axios.post(
-            BASE_URL + "/api/generate-image",
-            {
-              width: 1024,
-              height: 1024,
-              input: element?.imagePrompt,
-              model: "sdxl",
-              aspectRatio: "1:1",
+      const images = [];
+      for (let i = 0; i < GenerateImagePrompts.length; i++) {
+        const element = GenerateImagePrompts[i];
+        const rawPrompt = element?.imagePrompt || topic;
+        const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
+
+        console.log(`[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length}:`, enhancedPrompt);
+        const result = await axios.post(
+          BASE_URL + "/api/generate-image",
+          {
+            width: 1024,
+            height: 1024,
+            input: enhancedPrompt,
+            model: "sdxl",
+            aspectRatio: "1:1",
+          },
+          {
+            headers: {
+              "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY,
+              "Content-Type": "application/json",
             },
-            {
-              headers: {
-                "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY,
-                "Content-Type": "application/json",
-              },
-            },
-          );
-          console.log("Image URL:", result.data.image);
-          return result.data.image;
-        }),
-      );
+          },
+        );
+        console.log(`[generateImages] Image ${i + 1} generated:`, result.data?.image);
+        if (result.data?.image) {
+          images.push(result.data.image);
+        }
+      }
       return images;
     });
 
