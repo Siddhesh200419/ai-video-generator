@@ -31,14 +31,28 @@ function CreateNewVideo() {
       return;
     }
 
-    if (
-      !formData?.topic ||
-      !formData?.script ||
-      !formData?.videoStyle ||
-      !formData?.caption ||
-      !formData?.voice
-    ) {
-      console.log("ERROR", "Enter all Fields");
+    if (!formData?.title) {
+      toast.error("Please enter a project title");
+      return;
+    }
+    if (!formData?.topic) {
+      toast.error("Please select a theme or enter a topic");
+      return;
+    }
+    if (!formData?.script) {
+      toast.error("Please generate and select a script");
+      return;
+    }
+    if (!formData?.videoStyle) {
+      toast.error("Please select a visual style");
+      return;
+    }
+    if (!formData?.voice) {
+      toast.error("Please select a voice narrator");
+      return;
+    }
+    if (!formData?.caption) {
+      toast.error("Please select a caption style");
       return;
     }
     setLoading(true);
@@ -119,7 +133,7 @@ function CreateNewVideo() {
              <Button
                size="lg"
                className="w-full md:w-auto px-10 py-6 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all"
-               disable={loading}
+               disabled={loading}
                onClick={GenerateVideo}
              >
                {loading ? (
