@@ -4,6 +4,30 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     const { topic, theme } = await req.json();
+    // #region debug-point B:route-input
+    (() => {
+      const fs = require("fs");
+      let url = "http://127.0.0.1:7777/event";
+      let sessionId = "gemini-script-404";
+      try {
+        const envText = fs.readFileSync(".dbg/gemini-script-404.env", "utf8");
+        url = envText.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || url;
+        sessionId = envText.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || sessionId;
+      } catch {}
+      fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          sessionId,
+          runId: "pre-fix",
+          hypothesisId: "B",
+          location: "app/api/generate-script/route.jsx:POST",
+          msg: "[DEBUG] generate-script route received request",
+          data: { hasTopic: !!topic, hasTheme: !!theme },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+    })();
+    // #endregion
 
     const selectedTopic = topic?.trim();
     const selectedTheme = theme?.trim();
@@ -55,10 +79,38 @@ Return response STRICTLY in valid JSON format:
 
     return NextResponse.json(parsed);
   } catch (err) {
+    // #region debug-point C:route-error
+    (() => {
+      const fs = require("fs");
+      let url = "http://127.0.0.1:7777/event";
+      let sessionId = "gemini-script-404";
+      try {
+        const envText = fs.readFileSync(".dbg/gemini-script-404.env", "utf8");
+        url = envText.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || url;
+        sessionId = envText.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || sessionId;
+      } catch {}
+      fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          sessionId,
+          runId: "pre-fix",
+          hypothesisId: "C",
+          location: "app/api/generate-script/route.jsx:catch",
+          msg: "[DEBUG] generate-script route failed",
+          data: {
+            message: err?.message,
+            status: err?.status,
+            statusText: err?.statusText,
+          },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+    })();
+    // #endregion
     console.error("API Error in generate-script:", err);
     return NextResponse.json(
       { error: "Failed to generate script", details: err?.message },
       { status: 500 }
     );
   }
-}
+}
