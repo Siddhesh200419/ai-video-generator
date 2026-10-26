@@ -4,30 +4,6 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     const { topic, theme } = await req.json();
-    // #region debug-point B:route-input
-    (() => {
-      const fs = require("fs");
-      let url = "http://127.0.0.1:7777/event";
-      let sessionId = "gemini-script-404";
-      try {
-        const envText = fs.readFileSync(".dbg/gemini-script-404.env", "utf8");
-        url = envText.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || url;
-        sessionId = envText.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || sessionId;
-      } catch {}
-      fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId,
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "app/api/generate-script/route.jsx:POST",
-          msg: "[DEBUG] generate-script route received request",
-          data: { hasTopic: !!topic, hasTheme: !!theme },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-    })();
-    // #endregion
 
     const selectedTopic = topic?.trim();
     const selectedTheme = theme?.trim();
@@ -35,36 +11,20 @@ export async function POST(req) {
     if (!selectedTopic && !selectedTheme) {
       return NextResponse.json(
         { error: "Please provide a topic or theme" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     let topicPromptDesc = "";
-    if (selectedTopic && selectedTheme && selectedTopic.toLowerCase() !== selectedTheme.toLowerCase()) {
+    if (
+      selectedTopic &&
+      selectedTheme &&
+      selectedTopic.toLowerCase() !== selectedTheme.toLowerCase()
+    ) {
       topicPromptDesc = `Topic: "${selectedTopic}" within the Theme/Genre of "${selectedTheme}"`;
     } else {
       topicPromptDesc = `Topic / Theme: "${selectedTopic || selectedTheme}"`;
     }
-
-    const PROMPT = `You are an elite YouTube Shorts storyteller and viral scriptwriter.
-Write exactly two (2) distinct, compelling, and viral voiceover scripts for a 30-second YouTube Short on:
-${topicPromptDesc}.
-
-STRICT CONTENT & RELEVANCE RULES:
-1. DIRECT RELEVANCE: The script must be 100% focused on "${selectedTopic || selectedTheme}". Every single sentence must tell a captivating story, explain a mind-bending fact, or deliver high-intensity intrigue directly about this subject.
-2. NO GENERIC OR PROMOTIONAL FILLER: Absolutely NO generic advertising, NO "looking for stories?", NO "subscribe/visit website". Start immediately with the core story or fact.
-3. SPOKEN VOICEOVER ONLY: Write ONLY the exact words that will be spoken by a voiceover narrator.
-4. NO LABELS OR STAGE DIRECTIONS: Do NOT include ANY headings or tags like "Voiceover:", "Narrator:", "Scene 1:", "(Sound effect:)", or character actions. Raw spoken narration only.
-5. DURATION & PACING: Each script must be strictly between 65 and 85 words long. This corresponds to exactly 25-30 seconds of spoken narration at a natural conversational pace.
-6. FIRST-SECOND HOOK: Start with an irresistible hook sentence that grabs the viewer in the first 2 seconds.
-
-Return response STRICTLY in valid JSON format:
-{
-  "scripts": [
-    { "content": "Spoken voiceover script 1..." },
-    { "content": "Spoken voiceover script 2..." }
-  ]
-}`;
 
     const result = await generateScript.sendMessage(PROMPT);
     const resp = await result.response.text();
@@ -79,38 +39,10 @@ Return response STRICTLY in valid JSON format:
 
     return NextResponse.json(parsed);
   } catch (err) {
-    // #region debug-point C:route-error
-    (() => {
-      const fs = require("fs");
-      let url = "http://127.0.0.1:7777/event";
-      let sessionId = "gemini-script-404";
-      try {
-        const envText = fs.readFileSync(".dbg/gemini-script-404.env", "utf8");
-        url = envText.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || url;
-        sessionId = envText.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || sessionId;
-      } catch {}
-      fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId,
-          runId: "pre-fix",
-          hypothesisId: "C",
-          location: "app/api/generate-script/route.jsx:catch",
-          msg: "[DEBUG] generate-script route failed",
-          data: {
-            message: err?.message,
-            status: err?.status,
-            statusText: err?.statusText,
-          },
-          ts: Date.now(),
-        }),
-      }).catch(() => {});
-    })();
-    // #endregion
     console.error("API Error in generate-script:", err);
     return NextResponse.json(
       { error: "Failed to generate script", details: err?.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

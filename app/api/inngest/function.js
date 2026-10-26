@@ -14,8 +14,7 @@ import {
   getRenderProgress,
 } from "@remotion/lambda/client";
 
-const ImagePromptScript = `You are a visual director creating image prompts for an AI video generator.
-Video Visual Style: {style}
+const ImagePromptScript = `Video Visual Style: {style}
 Video Topic: {topic}
 
 The spoken voiceover script of the video is:
@@ -23,19 +22,8 @@ The spoken voiceover script of the video is:
 {script}
 """
 
-Instructions:
-1. Divide the script chronologically into exactly 4 to 5 distinct sequential scenes that visually narrate the entire story from start to finish.
-2. For each scene, write a highly descriptive and visually evocative image prompt tailored for SDXL image generation.
-3. Every prompt MUST directly illustrate the specific events, characters, environment, lighting, and mood described in that scene of the script.
-4. Integrate the aesthetic details of "{style}" style (e.g. textures, color palette, lighting atmosphere).
-5. DO NOT include any text, letters, watermarks, speech bubbles, camera angles (no "wide angle", "close-up"), or meta instructions in the image prompt. Describe purely the visual elements of the scene itself.
-6. Return STRICTLY a valid JSON array matching this format:
-[
-  {
-    "sceneContent": "Brief 1-sentence summary of the scene from the script",
-    "imagePrompt": "Detailed visual description of the scene in {style} style..."
-  }
-]`;
+Create 4 to 5 sequential scene image prompts in {style} style.
+Return JSON only.`;
 
 export const helloWorld = inngest.createFunction(
   { id: "hello-world" },
@@ -135,15 +123,21 @@ export const GenerateVideoData = inngest.createFunction(
         console.log("[generateImagePrompt] Requesting prompts for script...");
         const result = await GenerateImageScript.sendMessage(FINAL_PROMPT);
         const respText = await result.response.text();
-        const jsonStart = respText.indexOf("[");
-        const jsonEnd = respText.lastIndexOf("]") + 1;
+        const jsonStart = respText.indexOf("{");
+        const jsonEnd = respText.lastIndexOf("}") + 1;
         if (jsonStart === -1 || jsonEnd === -1) {
           throw new Error("Invalid image prompts JSON response: " + respText);
         }
         const cleanJSON = respText.slice(jsonStart, jsonEnd);
         const parsed = JSON.parse(cleanJSON);
-        console.log(`[generateImagePrompt] Generated ${parsed.length} scene image prompts.`);
-        return parsed;
+        const scenes = Array.isArray(parsed)
+          ? parsed
+          : parsed?.scenes || parsed?.imagePrompts || [];
+        if (!Array.isArray(scenes) || scenes.length === 0) {
+          throw new Error("Invalid image prompts JSON response: " + respText);
+        }
+        console.log(`[generateImagePrompt] Generated ${scenes.length} scene image prompts.`);
+        return scenes;
       },
     );
 

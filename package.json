@@ -26,6 +26,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "firebase": "^11.4.0",
+    "groq-sdk": "^1.6.0",
     "inngest": "^3.54.2",
     "lucide-react": "^0.477.0",
     "moment": "^2.30.1",

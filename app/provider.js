@@ -2,6 +2,7 @@
 import React, { useContext, useEffect, useState } from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { onAuthStateChanged } from "firebase/auth"
+import { Toaster } from "react-hot-toast"
 import { auth } from "@/config/firebaseConfig"
 import { AuthContext } from "@/_context/Authcontext"
 
@@ -41,6 +42,12 @@ function Provider({ children }) {
                     enableSystem
                     disableTransitionOnChange>
                     {children}
+                    <Toaster
+                        position="top-center"
+                        toastOptions={{
+                            duration: 4000,
+                        }}
+                    />
                 </NextThemesProvider>
             </AuthContext.Provider>
         </div>
