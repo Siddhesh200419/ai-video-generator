@@ -5,6 +5,9 @@ import { inngest } from "@/inngest/client";
 import { createClient } from "@deepgram/sdk";
 import { eq } from "drizzle-orm";
 import axios from "axios";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { uploadFile } from "@/lib/storage";
+import { geminiAudioToWav } from "@/lib/pcmToWav";
 import {
   getFunctions,
   renderMediaOnLambda,
@@ -55,20 +58,58 @@ export const GenerateVideoData = inngest.createFunction(
     const { script, topic, title, caption, videoStyle, voice, recordId } =
       event?.data;
 
-    // Step 1: Generate Audio File
+    // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
+    // Upload retries stay inside this step so a failed upload does NOT re-call Gemini.
     const GenerateAudioFile = await step.run("GenerateAudioFile", async () => {
-      const result = await axios.post(
-        BASE_URL + "/api/text-to-speech",
-        { input: script, voice: voice },
-        {
-          headers: {
-            "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY,
-            "Content-Type": "application/json",
+      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel(
+        { model: "gemini-3.8-flash-tts" },
+        { apiVersion: "v1beta" },
+      );
+
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: script }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voice || "Kore" },
+            },
           },
         },
+      });
+
+      const audioPart = result.response.candidates?.[0]?.content?.parts?.find(
+        (part) => part.inlineData,
       );
-      console.log("Audio URL:", result.data.audio);
-      return result.data.audio;
+
+      if (!audioPart?.inlineData?.data) {
+        throw new Error("Gemini did not return audio data");
+      }
+
+      const wavBuffer = geminiAudioToWav(
+        audioPart.inlineData.data,
+        audioPart.inlineData.mimeType,
+      );
+
+      let lastErr;
+      for (let i = 0; i < 3; i++) {
+        try {
+          // Return ONLY the URL — never the buffer (Inngest step output size limits)
+          const downloadUrl = await uploadFile(
+            wavBuffer,
+            `audio/${recordId}.wav`,
+            "audio/wav",
+          );
+          console.log("Audio URL (S3):", downloadUrl);
+          return downloadUrl;
+        } catch (e) {
+          lastErr = e;
+          console.error(`S3 audio upload attempt ${i + 1} failed:`, e?.message || e);
+          await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+        }
+      }
+      throw lastErr;
     });
 
     // Step 2: Generate Captions
