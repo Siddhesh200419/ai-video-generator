@@ -72,11 +72,6 @@ function Topic({ onHandleInputChange }) {
     // Prevent duplicate submissions.
     if (loading) return;
 
-    if (user && user.credits <= 0) {
-      toast.error("Please add more credits to generate scripts.");
-      return;
-    }
-
     const finalTopic = customTopic.trim() || title.trim();
     const finalTheme = selectTopic.trim();
 

@@ -26,11 +26,6 @@ function CreateNewVideo() {
 
   const GenerateVideo = async () => {
 
-    if(user?.credits <= 0 ){
-      toast('Please Add More Credits')
-      return;
-    }
-
     if (!formData?.title) {
       toast.error("Please enter a project title");
       return;
@@ -57,8 +52,7 @@ function CreateNewVideo() {
     }
     setLoading(true);
     // POST to /api/generate-video-data
-    // This route atomically: checks credits, inserts video record,
-    // deducts 1 credit, and dispatches the Inngest background job.
+    // This route inserts video record and dispatches the Inngest background job.
     const resp = await fetch("/api/generate-video-data", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

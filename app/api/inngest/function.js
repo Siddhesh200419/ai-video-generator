@@ -34,8 +34,6 @@ export const helloWorld = inngest.createFunction(
   },
 );
 
-const BASE_URL = "https://aigurulab.tech";
-
 export const GenerateVideoData = inngest.createFunction(
   {
     id: "generate-video-data",
@@ -141,36 +139,84 @@ export const GenerateVideoData = inngest.createFunction(
       },
     );
 
-    // Step 4: Generate Images
+    // Step 4: Generate Images via Cloudflare Workers AI FLUX → upload to S3
     const GenerateImages = await step.run("generateImages", async () => {
+      // Validate Cloudflare credentials (server-side only)
+      const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+      const cfApiToken = process.env.CLOUDFLARE_API_TOKEN;
+      if (!cfAccountId || !cfApiToken) {
+        throw new Error(
+          "Missing Cloudflare credentials: ensure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are set in .env.local",
+        );
+      }
+
+      const fluxUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
       const images = [];
+
       for (let i = 0; i < GenerateImagePrompts.length; i++) {
         const element = GenerateImagePrompts[i];
         const rawPrompt = element?.imagePrompt || topic;
         const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
 
-        console.log(`[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length}:`, enhancedPrompt);
-        const result = await axios.post(
-          BASE_URL + "/api/generate-image",
-          {
-            width: 1024,
-            height: 1024,
-            input: enhancedPrompt,
-            model: "sdxl",
-            aspectRatio: "1:1",
-          },
+        console.log(
+          `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
+        );
+
+        // Call Cloudflare Workers AI FLUX
+        const fluxResponse = await axios.post(
+          fluxUrl,
+          { prompt: enhancedPrompt, steps: 4 },
           {
             headers: {
-              "x-api-key": process.env.NEXT_PUBLIC_AIGURULAB_API_KEY,
+              Authorization: `Bearer ${cfApiToken}`,
               "Content-Type": "application/json",
             },
+            timeout: 120_000, // 2-minute timeout per image
           },
         );
-        console.log(`[generateImages] Image ${i + 1} generated:`, result.data?.image);
-        if (result.data?.image) {
-          images.push(result.data.image);
+
+        // Validate the response structure
+        const base64Image = fluxResponse.data?.result?.image;
+        if (!base64Image || typeof base64Image !== "string") {
+          throw new Error(
+            `FLUX did not return image data for scene ${i + 1}. ` +
+              `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
+          );
         }
+
+        // Decode Base64 JPEG into a buffer
+        const imageBuffer = Buffer.from(base64Image, "base64");
+        if (imageBuffer.length < 100) {
+          throw new Error(
+            `FLUX returned an unexpectedly small image for scene ${i + 1} (${imageBuffer.length} bytes)`,
+          );
+        }
+
+        // Upload to S3 using the existing storage helper
+        const s3Key = `images/${recordId}/scene-${i}.jpg`;
+        let imageUrl;
+        let lastErr;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            imageUrl = await uploadFile(imageBuffer, s3Key, "image/jpeg");
+            break;
+          } catch (e) {
+            lastErr = e;
+            console.error(
+              `S3 image upload attempt ${attempt + 1} for scene ${i + 1} failed:`,
+              e?.message || e,
+            );
+            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        }
+        if (!imageUrl) {
+          throw lastErr;
+        }
+
+        console.log(`[generateImages] Scene ${i + 1} uploaded to S3: ${imageUrl}`);
+        images.push(imageUrl);
       }
+
       return images;
     });
 

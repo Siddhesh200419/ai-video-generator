@@ -110,14 +110,14 @@ function AppSidebar() {
                <div className="p-1.5 bg-primary/10 rounded-full">
                   <Gem className="h-3.5 w-3.5 text-primary" />
                </div>
-               <span className="text-xs font-medium text-muted-foreground">Credits</span>
+               {/* <span className="text-xs font-medium text-muted-foreground">Credits</span> */}
             </div>
-            <span className="text-sm font-bold text-foreground">{user?.credits || 0}</span>
+            {/* <span className="text-sm font-bold text-foreground">{user?.credits || 0}</span> */}
           </div>
           
-          <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mb-3">
+          {/* <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mb-3">
              <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min((user?.credits || 0) / 100 * 100, 100)}%` }}></div>
-          </div>
+          </div> */}
 
           <Button variant="outline" size="sm" className="w-full text-xs h-8 hover:bg-primary hover:text-primary-foreground border-primary/20 hover:border-primary transition-colors">Buy Credits</Button>
         </div>

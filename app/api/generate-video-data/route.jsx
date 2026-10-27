@@ -1,7 +1,6 @@
 import { db } from "@/configs/db";
-import { users, videoData } from "@/configs/schema";
+import { videoData } from "@/configs/schema";
 import { inngest } from "@/inngest/client";
-import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
@@ -14,18 +13,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // 2. Check credits
-    const [currentUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, uid))
-      .limit(1);
-
-    if (!currentUser || currentUser.credits <= 0) {
-      return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
-    }
-
-    // 3. Insert video record with status = 'pending'
+    // 2. Insert video record with status = 'pending'
     const [newVideo] = await db
       .insert(videoData)
       .values({
@@ -41,13 +29,7 @@ export async function POST(req) {
       })
       .returning();
 
-    // 4. Deduct 1 credit
-    await db
-      .update(users)
-      .set({ credits: sql`${users.credits} - 1` })
-      .where(eq(users.id, uid));
-
-    // 5. Dispatch Inngest background job with the new record ID
+    // 3. Dispatch Inngest background job with the new record ID
     await inngest.send({
       name: "generate-video-data",
       data: {
