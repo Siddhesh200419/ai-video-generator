@@ -54,23 +54,28 @@ function Voice({ onHandleInputChange }) {
 
   return (
     <div className="mt-5">
-      <h2 className="text-xl font-bold mb-2">Preview AI voice samples</h2>
-      <p className="text-sm text-gray-400 mb-4">Select voice for your video</p>
+      <h2 className="font-semibold text-2xl tracking-tight !mb-0">
+        Find the right read.
+      </h2>
+      <p className="text-sm text-muted-foreground mb-4 !mt-2">
+        Select a voice for your video narration
+      </p>
 
       {loading ? (
         <div className="flex justify-center items-center h-[200px]">
-          <Loader2 className="animate-spin text-blue-500" />
+          <Loader2 className="animate-spin text-primary" />
         </div>
       ) : (
         <ScrollArea className="h-[400px] w-full pr-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {voices.map((voice, index) => (
-              <div
+              <button
                 key={index}
-                className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center gap-4 bg-white dark:bg-slate-900 ${
+                type="button"
+                className={`text-left rounded-xl border-2 p-4 transition-all flex items-center gap-4 bg-card ${
                   voice.id === selectedVoice
-                    ? "border-blue-500 shadow-md"
-                    : "border-gray-100 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700"
+                    ? "border-primary shadow-md ring-1 ring-primary"
+                    : "border-border/50 hover:border-primary/50"
                 }`}
                 onClick={() => {
                   setSelectedVoice(voice.id);
@@ -80,7 +85,7 @@ function Voice({ onHandleInputChange }) {
                 <button
                   type="button"
                   onClick={(e) => handlePreview(e, voice)}
-                  className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700 transition-colors shrink-0"
+                  className="rounded-full bg-secondary text-secondary-foreground flex justify-center items-center size-10 hover:bg-primary hover:text-primary-foreground transition-colors shrink-0"
                 >
                   {previewingVoice === voice.id ? (
                     <Pause size={18} fill="currentColor" />
@@ -88,15 +93,25 @@ function Voice({ onHandleInputChange }) {
                     <Play size={18} fill="currentColor" className="ml-0.5" />
                   )}
                 </button>
-                <div className="flex flex-col overflow-hidden">
-                  <span className="font-semibold text-gray-900 dark:text-white truncate">
+                <div className="flex flex-col overflow-hidden flex-1">
+                  <span className="font-semibold text-foreground truncate">
                     {voice.name}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <span className="text-xs text-muted-foreground truncate">
                     {voice.description}
                   </span>
                 </div>
-              </div>
+                <div className="flex items-center gap-1">
+                  <span className="rounded-full bg-primary w-1 h-2" />
+                  <span className="rounded-full bg-primary w-1 h-3" />
+                  <span className="rounded-full bg-primary w-1 h-5" />
+                  <span className="rounded-full bg-primary w-1 h-3" />
+                  <span className="rounded-full bg-primary w-1 h-4" />
+                  <span className="rounded-full bg-primary w-1 h-2" />
+                  <span className="rounded-full bg-primary w-1 h-5" />
+                  <span className="rounded-full bg-primary w-1 h-3" />
+                </div>
+              </button>
             ))}
           </div>
         </ScrollArea>

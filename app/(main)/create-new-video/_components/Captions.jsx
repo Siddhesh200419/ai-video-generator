@@ -45,7 +45,6 @@ export const options = [
     name: "Tech",
     style: "text-cyan-400 text-2xl font-mono uppercase tracking-widest",
   },
-
   {
     name: "Luxury",
     style:
@@ -76,20 +75,28 @@ function Captions({ onHandleInputChange }) {
   const [selectedCaptionStyle, setSelectedCaptionStyle] = useState();
   return (
     <div className="mt-5">
-      <h2>Caption Style</h2>
-      <p className="text-sm text-gray-400">Select Caption Style</p>
+      <h2 className="font-semibold text-2xl tracking-tight !mb-0">
+        Give every word a moment.
+      </h2>
+      <p className="text-sm text-muted-foreground !mt-2">
+        Choose a style that makes your captions impossible to miss.
+      </p>
 
-      <div className="flex flex-wrap gap-4 mt-2">
+      <div className="flex flex-wrap gap-3 mt-4">
         {options.map((option, index) => (
           <div
             key={index}
-            onClick={()=>{
-                setSelectedCaptionStyle(option.name)
-                onHandleInputChange('caption',option)
+            onClick={() => {
+              setSelectedCaptionStyle(option.name);
+              onHandleInputChange("caption", option);
             }}
-            className={`p-2 hover:border bg-slate-900 border-gray-300 cursor-pointer rounded-lg ${selectedCaptionStyle == option.name && 'border'}`}
+            className={`p-3 cursor-pointer rounded-xl transition-all duration-200 border bg-card ${
+              selectedCaptionStyle == option.name
+                ? "border-primary ring-1 ring-primary shadow-md"
+                : "border-border/50 hover:border-primary/50"
+            }`}
           >
-            <h2 className={option.style}>{option.name}</h2>
+            <h2 className={`${option.style} !mb-0 !text-lg`}>{option.name}</h2>
           </div>
         ))}
       </div>

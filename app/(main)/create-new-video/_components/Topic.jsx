@@ -10,18 +10,18 @@ import { useAuthContext } from "@/app/provider";
 import toast from "react-hot-toast";
 
 const suggestions = [
-  "Historic Story",
+  "Mystery",
+  "Motivation",
+  "Facts",
+  "Story",
+  "Tech",
+  "History",
+  "Science",
   "Kids Story",
   "Movie Stories",
   "AI Innovations",
   "Space Mysteries",
   "Horror Stories",
-  "Mythological Tales",
-  "Tech Breakthroughs",
-  "True Crime Stories",
-  "Fantasy Adventures",
-  "Science Experiments",
-  "Motivational Stories",
 ];
 
 function Topic({ onHandleInputChange }) {
@@ -126,42 +126,34 @@ function Topic({ onHandleInputChange }) {
   return (
     <div className="space-y-6">
       {/* Project Title */}
-      <div>
-        <label className="text-sm font-semibold text-foreground">
-          Project Title
-        </label>
-
+      <div className="flex flex-col gap-2">
+        <h2 className="font-semibold text-2xl tracking-tight !mb-0">
+          What should this Short be about?
+        </h2>
         <Input
-          className="mt-1.5"
+          className="mt-1.5 rounded-lg bg-card text-foreground text-base border border-input outline-none"
           placeholder="e.g. Secrets of the Deep Sea"
           value={title}
           onChange={(event) => handleTitleChange(event.target.value)}
         />
+        <span className="text-muted-foreground text-sm">
+          Be specific or stay broad — we&apos;ll find the angle.
+        </span>
       </div>
 
       {/* Theme / Category */}
-      <div>
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-foreground">
-            Video Theme / Genre
-          </label>
-
+          <span className="font-medium text-sm">Choose a genre</span>
           {selectTopic && (
             <span className="text-xs text-primary font-medium">
               Selected: {selectTopic}
             </span>
           )}
         </div>
-
-        <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-          Describe what the video is about. If you leave this blank, your
-          project title is used as the topic.
-        </p>
-
         <div className="flex flex-wrap gap-2">
           {suggestions.map((suggestion, index) => {
             const isSelected = suggestion === selectTopic;
-
             return (
               <Button
                 type="button"
@@ -187,36 +179,36 @@ function Topic({ onHandleInputChange }) {
         <label className="text-sm font-semibold text-foreground">
           Custom Topic or Story Idea
         </label>
-
-        <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+        <p className="text-xs text-muted-foreground mt-0.5 mb-2 !mt-0">
           Enter what you want the video to be about (or leave blank to
           auto-create a story for the chosen theme).
         </p>
-
         <Textarea
           rows={3}
           value={customTopic}
           placeholder="e.g. The mysterious disappearance of Flight 19 in the Bermuda Triangle..."
           onChange={(event) => handleCustomTopicChange(event.target.value)}
+          className="resize-none rounded-lg bg-card text-foreground text-base border border-input outline-none"
         />
       </div>
 
       {/* Generate Script Button */}
-      <Button
-        type="button"
-        size="default"
-        className="gap-2 shadow-md"
-        disabled={loading}
-        onClick={GenerateScript}
-      >
-        {loading ? (
-          <Loader2Icon className="h-4 w-4 animate-spin" />
-        ) : (
-          <SparklesIcon className="h-4 w-4" />
-        )}
-
-        {loading ? "Generating Relevant Scripts..." : "Generate Scripts"}
-      </Button>
+      <div className="flex items-center gap-4">
+        <Button
+          type="button"
+          size="default"
+          className="font-semibold rounded-md bg-primary text-primary-foreground text-sm gap-2 shadow-md"
+          disabled={loading}
+          onClick={GenerateScript}
+        >
+          {loading ? (
+            <Loader2Icon className="h-4 w-4 animate-spin" />
+          ) : (
+            <SparklesIcon className="h-4 w-4" />
+          )}
+          {loading ? "Generating..." : "Generate scripts"}
+        </Button>
+      </div>
 
       {/* Generated Scripts */}
       {scripts.length > 0 && (
@@ -224,20 +216,18 @@ function Topic({ onHandleInputChange }) {
           ref={scriptsRef}
           className="mt-4 scroll-mt-24 pt-4 border-t border-border/40"
         >
-          <h3 className="text-base font-semibold text-foreground mb-1">
+          <h3 className="text-base font-semibold text-foreground mb-1 !mb-1">
             Choose Your Voiceover Script
           </h3>
-
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="text-xs text-muted-foreground mb-3 !mt-0">
             Click on a script to use it for your video:
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {scripts.map((item, index) => {
               const isSelected = selectedScriptIndex === index;
-
               return (
-                <div
+                <article
                   key={index}
                   role="button"
                   tabIndex={0}
@@ -260,24 +250,26 @@ function Topic({ onHandleInputChange }) {
                     }
                   }}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Option {index + 1}
+                  <div className="flex mb-3 justify-between items-center">
+                    <span className="font-semibold rounded-md bg-primary/10 text-primary text-xs px-2 py-1">
+                      {index === 0 ? "Curiosity hook" : "Surprising fact"}
                     </span>
-
-                    {isSelected && (
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        {item.content.split(/\s+/).length} words
+                      </span>
+                      {isSelected && (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
                   </div>
-
-                  <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap mb-3">
                     {item.content}
                   </p>
-
-                  <p className="mt-3 text-xs text-primary font-medium">
-                    {isSelected ? "Selected" : "Click to select"}
+                  <p className="text-xs text-primary font-medium">
+                    {isSelected ? "✓ Selected" : "Click to select"}
                   </p>
-                </div>
+                </article>
               );
             })}
           </div>
