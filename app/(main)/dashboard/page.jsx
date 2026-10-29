@@ -4,8 +4,13 @@ import VideoList from "./_components/VideoList";
 function DashBoard() {
   return (
     <div>
-      <h2 className="font-bold text-3xl">My Videos</h2>
-      <VideoList/>
+      <div className="flex flex-col gap-2 mb-8">
+        <h2 className="font-semibold text-3xl tracking-tight !mb-0">My videos</h2>
+        <p className="text-muted-foreground text-base !mt-0">
+          Your ideas, rendered.
+        </p>
+      </div>
+      <VideoList />
     </div>
   );
 }
