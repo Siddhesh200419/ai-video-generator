@@ -1,10 +1,10 @@
-﻿import { Outfit } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import Provider from "./provider";
 
 export const metadata = {
-  title: "Video Gen - AI Short Video Generator",
-  description: "Create AI-powered YouTube short videos instantly",
+  title: "ReelForge - AI Short Video Generator",
+  description: "Turn one idea into a Short people actually finish. ReelForge writes, voices, styles, and renders ready-to-post YouTube Shorts in minutes.",
 };
 
 const outfit = Outfit({ subsets: ["latin"] });
