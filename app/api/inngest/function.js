@@ -46,28 +46,86 @@ export const GenerateVideoData = inngest.createFunction(
 
     // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
     // Upload retries stay inside this step so a failed upload does NOT re-call Gemini.
+
+    // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
     const GenerateAudioFile = await step.run("GenerateAudioFile", async () => {
-      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel(
-        { model: "gemini-3.8-flash-tts" },
-        { apiVersion: "v1beta" },
+      const genAI = new GoogleGenerativeAI(
+        process.env.GEMINI_API_KEY ||
+        process.env.NEXT_PUBLIC_GEMINI_API_KEY
       );
 
+      const model = genAI.getGenerativeModel(
+        { model: "gemini-3.8-flash-tts" },
+        { apiVersion: "v1beta" }
+      );
+
+      // Gemini prebuilt voice IDs, not descriptive UI labels.
+      const supportedVoices = new Set([
+        "Zephyr",
+        "Puck",
+        "Charon",
+        "Kore",
+        "Fenrir",
+        "Leda",
+        "Orus",
+        "Aoede",
+        "Callirrhoe",
+        "Autonoe",
+        "Enceladus",
+        "Iapetus",
+        "Umbriel",
+        "Algieba",
+        "Despina",
+        "Erinome",
+        "Algenib",
+        "Rasalgethi",
+        "Laomedeia",
+        "Achernar",
+        "Alnilam",
+        "Schedar",
+        "Gacrux",
+        "Pulcherrima",
+        "Achird",
+        "Zubenelgenubi",
+        "Vindemiatrix",
+        "Sadachbia",
+        "Sadaltager",
+        "Sulafat",
+      ]);
+
+      const requestedVoice =
+        typeof voice === "string" ? voice.trim() : "";
+
+      const voiceName = supportedVoices.has(requestedVoice)
+        ? requestedVoice
+        : "Kore";
+
+      console.log("[GenerateAudioFile] Requested voice:", requestedVoice);
+      console.log("[GenerateAudioFile] Using Gemini voice:", voiceName);
+
       const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: script }] }],
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: script }],
+          },
+        ],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voice || "Kore" },
+              prebuiltVoiceConfig: {
+                voiceName,
+              },
             },
           },
         },
       });
 
-      const audioPart = result.response.candidates?.[0]?.content?.parts?.find(
-        (part) => part.inlineData,
-      );
+      const audioPart =
+        result.response.candidates?.[0]?.content?.parts?.find(
+          (part) => part.inlineData?.data
+        );
 
       if (!audioPart?.inlineData?.data) {
         throw new Error("Gemini did not return audio data");
@@ -75,28 +133,38 @@ export const GenerateVideoData = inngest.createFunction(
 
       const wavBuffer = geminiAudioToWav(
         audioPart.inlineData.data,
-        audioPart.inlineData.mimeType,
+        audioPart.inlineData.mimeType
       );
 
       let lastErr;
+
       for (let i = 0; i < 3; i++) {
         try {
-          // Return ONLY the URL — never the buffer (Inngest step output size limits)
           const downloadUrl = await uploadFile(
             wavBuffer,
             `audio/${recordId}.wav`,
-            "audio/wav",
+            "audio/wav"
           );
+
           console.log("Audio URL (S3):", downloadUrl);
           return downloadUrl;
         } catch (e) {
           lastErr = e;
-          console.error(`S3 audio upload attempt ${i + 1} failed:`, e?.message || e);
-          await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+
+          console.error(
+            `S3 audio upload attempt ${i + 1} failed:`,
+            e?.message || e
+          );
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * (i + 1))
+          );
         }
       }
+
       throw lastErr;
     });
+
 
     // Step 2: Generate Captions
     const GenerateCaptions = await step.run("generateCaptions", async () => {
@@ -180,7 +248,7 @@ export const GenerateVideoData = inngest.createFunction(
         if (!base64Image || typeof base64Image !== "string") {
           throw new Error(
             `FLUX did not return image data for scene ${i + 1}. ` +
-              `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
+            `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
           );
         }
 
