@@ -31,6 +31,28 @@ export default function ScriptStep() {
   const { formData, updateFormData } = useCreationContext();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isTitleManual, setIsTitleManual] = useState(
+    Boolean(
+      formData.title &&
+      formData.title !== "w" &&
+      formData.title !== "W" &&
+      formData.title !== formData.topic
+    )
+  );
+
+  const handleTitleChange = (e) => {
+    const val = e.target.value;
+    setIsTitleManual(true);
+    updateFormData("title", val);
+  };
+
+  const handleTopicChange = (e) => {
+    const val = e.target.value;
+    updateFormData("topic", val);
+    if (!isTitleManual) {
+      updateFormData("title", val);
+    }
+  };
 
   const handleGenerateScripts = async () => {
     if (loading) return;
@@ -38,8 +60,12 @@ export default function ScriptStep() {
     const finalTheme = formData.theme?.trim() || "Facts";
 
     if (!finalTopic && !finalTheme) {
-      toast.error("Please enter a topic or select a genre!");
+      toast.error("Please enter a title, topic, or select a genre!");
       return;
+    }
+
+    if (!formData.title?.trim() || formData.title.trim() === "w" || formData.title.trim() === "W") {
+      updateFormData("title", finalTopic || "Untitled Short");
     }
 
     setLoading(true);
@@ -94,6 +120,9 @@ export default function ScriptStep() {
       toast.error("Please select or enter a script before continuing");
       return;
     }
+    if (!formData.title?.trim() || formData.title.trim() === "w" || formData.title.trim() === "W") {
+      updateFormData("title", formData.topic?.trim() || "Untitled Short");
+    }
     router.push("/voice-step");
   };
 
@@ -120,6 +149,27 @@ export default function ScriptStep() {
           </div>
 
           <div className="flex flex-col flex-1 gap-6">
+            {/* Video Title */}
+            <div className="flex flex-col gap-2">
+              <label className="font-semibold text-lg text-foreground tracking-tight">
+                Video Title
+              </label>
+              <input
+                type="text"
+                value={
+                  formData.title === "w" || formData.title === "W"
+                    ? ""
+                    : formData.title || ""
+                }
+                onChange={handleTitleChange}
+                placeholder="e.g. Why Songs Get Stuck in Your Head"
+                className="rounded-lg bg-card text-foreground text-base border border-input outline-none px-4 py-2.5 focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <span className="text-muted-foreground text-xs">
+                This title will identify your video in your library and player.
+              </span>
+            </div>
+
             {/* Input prompt */}
             <div className="flex flex-col gap-2">
               <h1 className="font-semibold text-2xl tracking-tight !mb-0">
@@ -127,10 +177,7 @@ export default function ScriptStep() {
               </h1>
               <textarea
                 value={formData.topic || ""}
-                onChange={(e) => {
-                  updateFormData("topic", e.target.value);
-                  if (!formData.title) updateFormData("title", e.target.value);
-                }}
+                onChange={handleTopicChange}
                 placeholder="e.g. Why do some songs get stuck in your head?"
                 className="resize-none rounded-lg bg-card text-foreground text-base border border-input outline-none p-4 min-h-24 focus-visible:ring-2 focus-visible:ring-ring"
               />
