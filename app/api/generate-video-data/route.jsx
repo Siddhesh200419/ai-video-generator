@@ -6,7 +6,14 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { title, topic, script, videoStyle, caption, voice, uid, createdBy } = body;
+    let { title, topic, script, videoStyle, caption, voice, uid, createdBy } = body;
+
+    // Sanitize title so single-letter artifacts like 'w' never persist
+    if (!title || title.trim() === "w" || title.trim() === "W") {
+      title = (typeof topic === "string" && topic.trim()) ? topic.trim() : "Untitled Short";
+    } else {
+      title = title.trim();
+    }
 
     // 1. Validate required fields
     if (!uid || !title || !topic || !script || !videoStyle || !voice) {
@@ -34,6 +41,7 @@ export async function POST(req) {
       name: "generate-video-data",
       data: {
         ...body,
+        title,
         recordId: newVideo.id,
       },
     });
