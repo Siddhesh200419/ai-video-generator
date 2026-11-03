@@ -17,41 +17,105 @@ import {
 import moment from "moment";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import toast from "react-hot-toast";
+import { triggerConfetti } from "@/lib/confetti";
 
 function VideoList() {
   const [videoList, setVideoList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [justCompletedId, setJustCompletedId] = useState(null);
   const { user } = useAuthContext();
+  const pollingIntervals = useRef(new Map());
 
-  useEffect(() => {
-    if (user?.id) GetUserVideoList();
-  }, [user]);
-
-  const GetUserVideoList = async () => {
-    setLoading(true);
-    const resp = await fetch(`/api/videos?uid=${user?.id}`);
-    const data = await resp.json();
-    setVideoList(data ?? []);
-    setLoading(false);
-
-    // Poll any pending or generating videos
-    const inProgress = data?.find(
-      (v) => v.status === "pending" || v.status === "generating"
-    );
-    if (inProgress) StartPolling(inProgress.id);
+  const getVideoTitle = (v) => {
+    const t = v?.title?.trim();
+    if (t && t !== "w" && t !== "W") {
+      return t;
+    }
+    return v?.topic?.trim() || "Untitled Short";
   };
 
-  const StartPolling = (videoId) => {
-    const intervalId = setInterval(async () => {
-      const resp = await fetch(`/api/video/${videoId}`);
-      const video = await resp.json();
-      if (video?.status === "completed" || video?.status === "failed") {
-        clearInterval(intervalId);
-        GetUserVideoList();
+  useEffect(() => {
+    if (user?.id) GetUserVideoList(true);
+  }, [user]);
+
+  // Clean up all polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      pollingIntervals.current.forEach((intervalId) => clearInterval(intervalId));
+      pollingIntervals.current.clear();
+    };
+  }, []);
+
+  // Check URL query parameters or session storage for celebration triggers
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("completed") === "true" || params.get("celebrate") === "true") {
+        triggerConfetti();
+        toast.success("🎉 Video generation completed!", { duration: 5000 });
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
       }
-    }, 5000);
+    }
+  }, []);
+
+  const GetUserVideoList = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      const resp = await fetch(`/api/videos?uid=${user?.id}`);
+      const data = await resp.json();
+      setVideoList(data ?? []);
+
+      // Poll any pending or generating videos
+      const inProgressVideos = data?.filter(
+        (v) => v.status === "pending" || v.status === "generating"
+      );
+      inProgressVideos?.forEach((v) => {
+        startPollingVideo(v.id);
+      });
+    } catch (err) {
+      console.error("Error fetching video list:", err);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  const startPollingVideo = (videoId) => {
+    if (pollingIntervals.current.has(videoId)) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const resp = await fetch(`/api/video/${videoId}`);
+        if (!resp.ok) return;
+        const video = await resp.json();
+
+        if (video?.status === "completed" || video?.status === "failed") {
+          clearInterval(intervalId);
+          pollingIntervals.current.delete(videoId);
+
+          if (video?.status === "completed") {
+            // 🎉 Trigger celebratory confetti animation!
+            triggerConfetti();
+            const title = getVideoTitle(video);
+            toast.success(`🎉 "${title}" is ready!`, { duration: 5000 });
+            setJustCompletedId(videoId);
+            setTimeout(() => setJustCompletedId(null), 8000);
+          } else if (video?.status === "failed") {
+            toast.error("Video rendering failed");
+          }
+
+          // Silently refresh list to update status and playable buttons
+          GetUserVideoList(false);
+        }
+      } catch (err) {
+        console.error("Polling error for video", videoId, err);
+      }
+    }, 4000);
+
+    pollingIntervals.current.set(videoId, intervalId);
   };
 
   const filteredVideos = videoList.filter((v) => {
@@ -63,7 +127,14 @@ function VideoList() {
     return true;
   });
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, isJustCompleted) => {
+    if (isJustCompleted) {
+      return (
+        <Badge className="bg-primary text-primary-foreground animate-pulse font-semibold">
+          🎉 Just Ready!
+        </Badge>
+      );
+    }
     switch (status) {
       case "completed":
         return (
@@ -160,101 +231,107 @@ function VideoList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVideos?.map((video, index) => (
-            <Card
-              key={index}
-              className="shadow-sm rounded-xl bg-card border overflow-hidden group"
-            >
-              {/* Thumbnail Area */}
-              <div
-                className={`${getBgColor(index)} flex relative p-6 justify-center items-center h-80 overflow-hidden`}
+          {filteredVideos?.map((video, index) => {
+            const videoTitle = getVideoTitle(video);
+            const isJustCompleted = justCompletedId === video.id;
+            return (
+              <Card
+                key={index}
+                className={`shadow-sm rounded-xl bg-card border overflow-hidden group transition-all duration-500 ${
+                  isJustCompleted ? "ring-2 ring-primary shadow-xl scale-[1.01]" : ""
+                }`}
               >
-                {video?.images?.[0] ? (
-                  <img
-                    src={video.images[0]}
-                    alt={video?.title}
-                    className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="text-center rounded-lg bg-primary/20 text-primary flex flex-col justify-center items-center gap-4 w-40 h-full">
-                    <Film className="size-12" />
-                    <span className="font-semibold text-lg">
-                      {video?.title?.split(" ").slice(0, 2).join(" ")}
-                    </span>
-                  </div>
-                )}
-
-                {/* Overlay gradient */}
-                {video?.images?.[0] && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                )}
-
-                {/* Action Buttons */}
-                <div className="shadow-sm rounded-lg bg-card/90 flex absolute inset-x-4 bottom-4 p-2 justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {video.status === "completed" && (
-                    <>
-                      <Link href={`/play-video/${video.id}`}>
-                        <Button variant="secondary" size="sm" className="gap-1">
-                          <Play className="size-3" />
-                          Play
-                        </Button>
-                      </Link>
-                      {video?.downloadUrl && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="gap-1"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            window.open(video.downloadUrl, "_blank");
-                          }}
-                        >
-                          <Download className="size-3" />
-                          Download
-                        </Button>
-                      )}
-                    </>
-                  )}
-                  {video.status === "failed" && (
-                    <Button variant="secondary" size="sm" className="gap-1">
-                      <RefreshCw className="size-3" />
-                      Retry
-                    </Button>
-                  )}
-                  {(video.status === "pending" ||
-                    video.status === "generating") && (
-                    <div className="w-full px-2 py-1">
-                      <div className="font-medium text-xs flex mb-2 justify-between items-center">
-                        <span>Rendering</span>
-                        <Loader2 className="size-3 animate-spin" />
-                      </div>
-                      <div className="rounded-full bg-muted h-2 overflow-hidden">
-                        <div className="rounded-full bg-accent-foreground animate-pulse w-[60%] h-full" />
-                      </div>
+                {/* Thumbnail Area */}
+                <div
+                  className={`${getBgColor(index)} flex relative p-6 justify-center items-center h-80 overflow-hidden`}
+                >
+                  {video?.images?.[0] ? (
+                    <img
+                      src={video.images[0]}
+                      alt={videoTitle}
+                      className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="text-center rounded-lg bg-primary/20 text-primary flex flex-col justify-center items-center gap-4 w-40 h-full">
+                      <Film className="size-12" />
+                      <span className="font-semibold text-lg">
+                        {videoTitle.split(" ").slice(0, 2).join(" ")}
+                      </span>
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Video Info */}
-              <Link href={video?.id ? `/play-video/${video.id}` : "#"}>
-                <div className="flex p-5 flex-col gap-4">
-                  <div className="flex justify-between items-start gap-4">
-                    <h2 className="font-semibold !mb-0 !text-base line-clamp-1">
-                      {video?.title}
-                    </h2>
-                    {getStatusBadge(video.status)}
-                  </div>
-                  <div className="text-muted-foreground text-sm flex justify-between items-center">
-                    <span>{moment(video?.createdAt).format("MMM D, YYYY")}</span>
-                    <span className="font-mono">
-                      {video.status === "completed" ? "00:30" : "—"}
-                    </span>
+                  {/* Overlay gradient */}
+                  {video?.images?.[0] && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="shadow-sm rounded-lg bg-card/90 flex absolute inset-x-4 bottom-4 p-2 justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {video.status === "completed" && (
+                      <>
+                        <Link href={`/play-video/${video.id}`}>
+                          <Button variant="secondary" size="sm" className="gap-1">
+                            <Play className="size-3" />
+                            Play
+                          </Button>
+                        </Link>
+                        {video?.downloadUrl && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="gap-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              window.open(video.downloadUrl, "_blank");
+                            }}
+                          >
+                            <Download className="size-3" />
+                            Download
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {video.status === "failed" && (
+                      <Button variant="secondary" size="sm" className="gap-1">
+                        <RefreshCw className="size-3" />
+                        Retry
+                      </Button>
+                    )}
+                    {(video.status === "pending" ||
+                      video.status === "generating") && (
+                      <div className="w-full px-2 py-1">
+                        <div className="font-medium text-xs flex mb-2 justify-between items-center">
+                          <span>Rendering</span>
+                          <Loader2 className="size-3 animate-spin" />
+                        </div>
+                        <div className="rounded-full bg-muted h-2 overflow-hidden">
+                          <div className="rounded-full bg-accent-foreground animate-pulse w-[60%] h-full" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </Link>
-            </Card>
-          ))}
+
+                {/* Video Info */}
+                <Link href={video?.id ? `/play-video/${video.id}` : "#"}>
+                  <div className="flex p-5 flex-col gap-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <h2 className="font-semibold !mb-0 !text-base line-clamp-1">
+                        {videoTitle}
+                      </h2>
+                      {getStatusBadge(video.status, isJustCompleted)}
+                    </div>
+                    <div className="text-muted-foreground text-sm flex justify-between items-center">
+                      <span>{moment(video?.createdAt).format("MMM D, YYYY")}</span>
+                      <span className="font-mono">
+                        {video.status === "completed" ? "00:30" : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </Card>
+            );
+          })}
         </div>
       )}
 
