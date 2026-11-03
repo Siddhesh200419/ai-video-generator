@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Loader2, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { triggerConfetti } from "@/lib/confetti";
 
 function GenerationProgressContent() {
   const router = useRouter();
@@ -26,6 +27,7 @@ function GenerationProgressContent() {
 
         if (data.status === "completed") {
           setPercent(100);
+          triggerConfetti();
           setTimeout(() => {
             router.push(`/video-result?videoId=${videoId}`);
           }, 1200);
@@ -52,8 +54,14 @@ function GenerationProgressContent() {
         return prev + 2;
       });
     }, 1500);
+
     return () => clearInterval(timer);
   }, []);
+
+  const displayTitle =
+    videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
+      ? videoData.title
+      : videoData?.topic || "ONE TINY";
 
   return (
     <div className="bg-background text-foreground min-h-screen w-full">
@@ -188,7 +196,7 @@ function GenerationProgressContent() {
                 <div className="bg-primary/20 absolute inset-x-0 bottom-0 h-2/3" />
                 <div className="flex absolute inset-x-8 bottom-12 flex-col gap-3">
                   <span className="font-semibold animate-pulse bg-foreground/80 text-primary text-xl sm:text-2xl tracking-[0.16em] px-3 py-1 w-fit">
-                    {videoData?.title?.substring(0, 15)?.toUpperCase() || "ONE TINY"}
+                    {((videoData?.title && videoData?.title !== "w" && videoData?.title !== "W") ? videoData.title : (videoData?.topic || "ONE TINY")).substring(0, 15).toUpperCase()}
                   </span>
                   <span className="font-semibold animate-pulse bg-foreground/80 text-primary text-xl sm:text-2xl tracking-[0.16em] px-3 py-1 w-fit">
                     CHORUS
