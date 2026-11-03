@@ -51,12 +51,22 @@ export default function ReviewStep() {
     setLoading(true);
 
     try {
+      const finalTitle =
+        formData.title?.trim() &&
+        formData.title.trim() !== "w" &&
+        formData.title.trim() !== "W"
+          ? formData.title.trim()
+          : formData.topic?.trim() || "Untitled Short";
+
+      const finalTopic =
+        formData.topic?.trim() || finalTitle;
+
       const resp = await fetch("/api/generate-video-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: formData.title || formData.topic || "Untitled Short",
-          topic: formData.topic || formData.title,
+          title: finalTitle,
+          topic: finalTopic,
           script: formData.script,
           videoStyle: formData.videoStyle,
           caption: formData.caption,
@@ -121,6 +131,27 @@ export default function ReviewStep() {
 
             {/* Review Cards list */}
             <div className="rounded-lg border border-border flex flex-col overflow-hidden divide-y divide-border bg-card">
+              {/* Title review */}
+              <div className="flex p-4 justify-between items-center gap-6">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm !mt-0">Video Title</p>
+                  <p className="text-muted-foreground text-sm mt-1 !mt-1 truncate">
+                    {formData.title &&
+                    formData.title !== "w" &&
+                    formData.title !== "W"
+                      ? formData.title
+                      : formData.topic || "Untitled Short"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/script-step")}
+                  className="font-medium text-primary text-sm shrink-0 hover:underline"
+                >
+                  Edit
+                </button>
+              </div>
+
               {/* Script review */}
               <div className="flex p-4 justify-between items-center gap-6">
                 <div className="min-w-0">
