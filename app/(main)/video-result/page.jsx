@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import RemotionPlayer from "../play-video/_components/RemotionPlayer";
 import toast from "react-hot-toast";
+import { triggerConfetti } from "@/lib/confetti";
 
 function VideoResultContent() {
   const router = useRouter();
@@ -36,6 +37,9 @@ function VideoResultContent() {
         if (resp.ok) {
           const data = await resp.json();
           setVideoData(data);
+          if (data?.status === "completed") {
+            triggerConfetti();
+          }
         }
       } catch (err) {
         console.error("Error fetching video:", err);
@@ -46,6 +50,11 @@ function VideoResultContent() {
 
     fetchVideo();
   }, [videoId]);
+
+  const displayTitle =
+    videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
+      ? videoData.title
+      : videoData?.topic || "Untitled Short";
 
   const shareUrl =
     typeof window !== "undefined"
@@ -114,7 +123,7 @@ function VideoResultContent() {
                   Your Short is ready
                 </h1>
                 <p className="text-muted-foreground mt-2 !mt-1">
-                  {videoData?.title || "Why do some songs get stuck in your head?"}
+                  {displayTitle}
                 </p>
               </div>
               <Badge className="bg-accent text-accent-foreground">
