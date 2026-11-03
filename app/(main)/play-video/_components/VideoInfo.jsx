@@ -18,6 +18,11 @@ function VideoInfo({ videoData }) {
   const isReady = !!videoData?.downloadUrl;
   const [copied, setCopied] = useState(false);
 
+  const displayTitle =
+    videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
+      ? videoData.title
+      : videoData?.topic || "Untitled Short";
+
   const onDownload = () => {
     if (!isReady) return;
     window.open(videoData.downloadUrl, "_blank");
@@ -42,7 +47,7 @@ function VideoInfo({ videoData }) {
               {isReady ? "Your Short is ready" : "Rendering..."}
             </h1>
             <p className="text-muted-foreground mt-2 !mt-2">
-              {videoData?.title}
+              {displayTitle}
             </p>
           </div>
           <Badge
