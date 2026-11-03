@@ -39,7 +39,11 @@ export default function LivePreview({ step = 1 }) {
           <div className="bg-foreground flex absolute inset-0 flex-col justify-center items-center gap-6">
             <Disc3 className="text-muted-foreground size-28 animate-spin-slow" />
             <div className="text-center rounded-md bg-card/50 text-card-foreground text-sm px-4 py-2 max-w-[80%]">
-              {formData.title || "Your video preview"}
+              {formData.title &&
+              formData.title !== "w" &&
+              formData.title !== "W"
+                ? formData.title
+                : formData.topic || "Your video preview"}
             </div>
           </div>
         )}
