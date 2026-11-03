@@ -65,7 +65,9 @@ function Topic({ onHandleInputChange }) {
   const handleTitleChange = (value) => {
     setTitle(value);
     onHandleInputChange("title", value);
-    onHandleInputChange("topic", buildTopic(selectTopic, customTopic, value));
+    if (!customTopic) {
+      onHandleInputChange("topic", buildTopic(selectTopic, "", value));
+    }
   };
 
   const GenerateScript = async () => {
@@ -125,17 +127,27 @@ function Topic({ onHandleInputChange }) {
 
   return (
     <div className="space-y-6">
-      {/* Project Title */}
+      {/* Video Title */}
       <div className="flex flex-col gap-2">
-        <h2 className="font-semibold text-2xl tracking-tight !mb-0">
-          What should this Short be about?
-        </h2>
+        <label className="font-semibold text-lg text-foreground tracking-tight">
+          Video Title
+        </label>
         <Input
-          className="mt-1.5 rounded-lg bg-card text-foreground text-base border border-input outline-none"
+          className="mt-1 rounded-lg bg-card text-foreground text-base border border-input outline-none"
           placeholder="e.g. Secrets of the Deep Sea"
           value={title}
           onChange={(event) => handleTitleChange(event.target.value)}
         />
+        <span className="text-muted-foreground text-xs">
+          This title will identify your video in your library and player.
+        </span>
+      </div>
+
+      {/* What should this Short be about? */}
+      <div className="flex flex-col gap-2">
+        <h2 className="font-semibold text-2xl tracking-tight !mb-0">
+          What should this Short be about?
+        </h2>
         <span className="text-muted-foreground text-sm">
           Be specific or stay broad — we&apos;ll find the angle.
         </span>
