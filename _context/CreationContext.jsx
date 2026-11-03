@@ -33,7 +33,13 @@ export function CreationProvider({ children }) {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return { ...initialData, ...JSON.parse(saved) };
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.title === "w" || parsed.title === "W") {
+            parsed.title = parsed.topic || "";
+          }
+          return { ...initialData, ...parsed };
+        }
       } catch (e) {
         console.error("Error reading saved creation data", e);
       }
