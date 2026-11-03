@@ -43,6 +43,11 @@ function PlayVideoPage() {
   const isFailed = videoData?.status === "failed";
   const isReady = videoData?.status === "completed";
 
+  const displayTitle =
+    videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
+      ? videoData.title
+      : videoData?.topic || "Untitled Short";
+
   // Show generation progress view while rendering
   if (isRendering) {
     return (
@@ -133,7 +138,7 @@ function PlayVideoPage() {
               </div>
               <div className="flex absolute inset-x-8 bottom-12 flex-col gap-3">
                 <span className="font-semibold animate-pulse bg-foreground/80 text-primary text-xl tracking-[0.16em] px-3 py-1 w-fit">
-                  {videoData?.title?.toUpperCase()?.substring(0, 20)}
+                  {displayTitle?.toUpperCase()?.substring(0, 24)}
                 </span>
               </div>
               <div className="bg-primary absolute inset-x-0 bottom-0 h-1">
@@ -166,7 +171,7 @@ function PlayVideoPage() {
             <div className="flex flex-col gap-1">
               <span className="font-medium">Video generation failed</span>
               <span className="text-muted-foreground text-sm">
-                {videoData?.title}
+                {displayTitle}
               </span>
             </div>
           </div>
@@ -179,13 +184,15 @@ function PlayVideoPage() {
   }
 
   // Show completed video result
+  const enrichedVideoData = videoData ? { ...videoData, title: displayTitle } : videoData;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
       <div className="flex justify-center items-start">
-        <RemotionPlayer videoData={videoData} />
+        <RemotionPlayer videoData={enrichedVideoData} />
       </div>
       <div>
-        <VideoInfo videoData={videoData} />
+        <VideoInfo videoData={enrichedVideoData} />
       </div>
     </div>
   );
