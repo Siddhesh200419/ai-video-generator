@@ -2,57 +2,15 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { auth } from "@/config/firebaseConfig";
-import {
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-} from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import toast from "react-hot-toast";
 
 export default function LogIn() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const handleEmailSignIn = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      toast.error("Please enter your email");
-      return;
-    }
-    if (!password) {
-      toast.error("Please enter your password");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast.success("Welcome back!");
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Sign in error:", error);
-      if (
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/invalid-credential"
-      ) {
-        toast.error("Invalid email or password");
-      } else {
-        toast.error(error.message || "Failed to log in");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -66,19 +24,6 @@ export default function LogIn() {
       toast.error(error.message || "Google sign-in failed");
     } finally {
       setGoogleLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      toast.error("Please enter your email address first");
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast.success("Password reset email sent! Check your inbox.");
-    } catch (error) {
-      toast.error(error.message || "Failed to send reset email");
     }
   };
 
@@ -104,70 +49,7 @@ export default function LogIn() {
               </div>
             </div>
 
-            <form onSubmit={handleEmailSignIn} className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2">
-                <label
-                  htmlFor="email"
-                  className="font-medium text-foreground text-sm"
-                >
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-md h-12"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label
-                  htmlFor="password"
-                  className="font-medium text-foreground text-sm"
-                >
-                  Password
-                </label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="rounded-md pr-12 h-12"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Show or hide password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="-translate-y-1/2 rounded-sm text-muted-foreground flex absolute top-1/2 right-3 p-2 justify-center items-center hover:bg-accent hover:text-accent-foreground"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={loading || !email || !password}
-                className="rounded-md bg-primary text-primary-foreground h-12 disabled:opacity-50"
-              >
-                {loading && <Loader2 className="size-4 mr-2 animate-spin" />}
-                Continue
-              </Button>
-
-              <div className="flex items-center gap-4">
-                <div className="bg-border flex-1 h-px" />
-                <span className="text-muted-foreground text-sm">or</span>
-                <div className="bg-border flex-1 h-px" />
-              </div>
-
+            <div className="flex flex-col gap-5">
               <Button
                 variant="outline"
                 type="button"
@@ -199,15 +81,7 @@ export default function LogIn() {
                 )}
                 Continue with Google
               </Button>
-
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                className="underline-offset-4 font-medium text-primary text-sm self-center hover:underline"
-              >
-                Forgot password?
-              </button>
-            </form>
+            </div>
 
             <div className="text-center text-muted-foreground text-sm">
               New here?{" "}
