@@ -2,73 +2,15 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { auth } from "@/config/firebaseConfig";
-import {
-  createUserWithEmailAndPassword,
-  updateProfile,
-  signInWithPopup,
-  GoogleAuthProvider,
-} from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import toast from "react-hot-toast";
 
 export default function SignUp() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [termsAgreed, setTermsAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-
-  const handleEmailSignUp = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      toast.error("Please enter your name");
-      return;
-    }
-    if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-    if (!termsAgreed) {
-      toast.error("Please agree to the Terms and Privacy Policy");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: name });
-      }
-      toast.success("Account created successfully!");
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Sign up error:", error);
-      if (error.code === "auth/email-already-in-use") {
-        toast.error("This email is already registered. Please log in.");
-      } else {
-        toast.error(error.message || "Failed to create account");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -105,79 +47,6 @@ export default function SignUp() {
                   Fast enough for class. Good enough to share.
                 </p>
               </div>
-            </div>
-
-            <form onSubmit={handleEmailSignUp} className="flex flex-col gap-4">
-              <Input
-                placeholder="Your name"
-                aria-label="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="rounded-md bg-card border-input px-4 h-12"
-              />
-              <div className="flex flex-col gap-1">
-                <Input
-                  placeholder="Email"
-                  type="email"
-                  aria-label="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-md bg-card border-input px-4 h-12"
-                />
-                {email && !isValidEmail(email) && (
-                  <p className="text-destructive text-xs">
-                    Enter a valid email address.
-                  </p>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  placeholder="Password"
-                  type={showPassword ? "text" : "password"}
-                  aria-label="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-md bg-card border-input pr-12 pl-4 h-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="-translate-y-1/2 rounded-sm text-muted-foreground absolute top-1/2 right-3 p-2 hover:bg-accent hover:text-accent-foreground"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-4" />
-                  ) : (
-                    <Eye className="size-4" />
-                  )}
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="terms"
-                  checked={termsAgreed}
-                  onCheckedChange={(checked) => setTermsAgreed(!!checked)}
-                />
-                <label
-                  htmlFor="terms"
-                  className="text-muted-foreground text-sm cursor-pointer select-none"
-                >
-                  I agree to the Terms and Privacy Policy
-                </label>
-              </div>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="rounded-md bg-primary text-primary-foreground h-12 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading && <Loader2 className="size-4 mr-2 animate-spin" />}
-                Create account
-              </Button>
-            </form>
-
-            <div className="flex items-center gap-4">
-              <div className="bg-border flex-1 h-px" />
-              <span className="text-muted-foreground text-sm">or</span>
-              <div className="bg-border flex-1 h-px" />
             </div>
 
             <Button
