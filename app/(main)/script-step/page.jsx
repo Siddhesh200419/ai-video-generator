@@ -5,12 +5,11 @@ import {
   ArrowRight,
   CheckCircle2,
   Copy,
-  Film,
   Loader2Icon,
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
-import { StepHeader, StepNav } from "@/components/creation/StepNav";
+import { StepNav } from "@/components/creation/StepNav";
 import LivePreview from "@/components/creation/LivePreview";
 import { useCreationContext } from "@/_context/CreationContext";
 import axios from "axios";
@@ -128,26 +127,10 @@ export default function ScriptStep() {
 
   return (
     <div className="bg-background text-foreground flex flex-col min-h-screen">
-      <StepHeader />
       <StepNav currentStep={1} />
 
       <main className="grid px-6 md:px-10 py-8 flex-1 gap-8 lg:gap-10 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] max-w-7xl mx-auto w-full">
         <section className="rounded-xl bg-card border border-border flex p-6 flex-col min-w-0 shadow-sm">
-          {/* Progress Header */}
-          <div className="rounded-lg bg-muted border border-border flex mb-8 px-4 py-3 items-center gap-3">
-            <Film className="text-primary size-5" />
-            <div className="flex flex-1 gap-2">
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-            </div>
-            <span className="font-medium uppercase text-muted-foreground text-xs tracking-wider">
-              Script setup
-            </span>
-          </div>
-
           <div className="flex flex-col flex-1 gap-6">
             {/* Video Title */}
             <div className="flex flex-col gap-2">
@@ -157,9 +140,7 @@ export default function ScriptStep() {
               <input
                 type="text"
                 value={
-                  formData.title === "w" || formData.title === "W"
-                    ? ""
-                    : formData.title || ""
+                  formData.title || ""
                 }
                 onChange={handleTitleChange}
                 placeholder="e.g. Why Songs Get Stuck in Your Head"
@@ -195,11 +176,10 @@ export default function ScriptStep() {
                     key={genre}
                     type="button"
                     onClick={() => updateFormData("theme", genre)}
-                    className={`font-medium rounded-md text-xs px-3.5 py-2 transition-all border ${
-                      formData.theme === genre
+                    className={`font-medium rounded-md text-xs px-3.5 py-2 transition-all border ${formData.theme === genre
                         ? "bg-primary text-primary-foreground border-primary shadow-sm"
                         : "bg-card text-foreground border-border hover:border-primary/50"
-                    }`}
+                      }`}
                   >
                     {genre}
                   </button>
@@ -243,11 +223,10 @@ export default function ScriptStep() {
                   return (
                     <article
                       key={index}
-                      className={`p-4 rounded-xl border transition-all ${
-                        isSelected
+                      className={`p-4 rounded-xl border transition-all ${isSelected
                           ? "border-primary bg-primary/5 ring-1 ring-primary"
                           : "border-border bg-card hover:border-border/80"
-                      }`}
+                        }`}
                     >
                       <div className="flex mb-3 justify-between items-center">
                         <span className="font-semibold rounded-md bg-primary/10 text-primary text-xs px-2 py-1">
@@ -264,11 +243,10 @@ export default function ScriptStep() {
                         <button
                           type="button"
                           onClick={() => handleSelectScript(item.content, index)}
-                          className={`font-semibold rounded-md text-xs px-3 py-2 transition-all ${
-                            isSelected
+                          className={`font-semibold rounded-md text-xs px-3 py-2 transition-all ${isSelected
                               ? "bg-primary text-primary-foreground"
                               : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
-                          }`}
+                            }`}
                         >
                           {isSelected ? "Selected ✓" : "Select"}
                         </button>
