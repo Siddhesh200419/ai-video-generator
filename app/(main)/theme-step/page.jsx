@@ -13,7 +13,7 @@ import {
   Paintbrush,
   Sparkles,
 } from "lucide-react";
-import { StepHeader, StepNav } from "@/components/creation/StepNav";
+import { StepNav } from "@/components/creation/StepNav";
 import LivePreview from "@/components/creation/LivePreview";
 import { useCreationContext } from "@/_context/CreationContext";
 
@@ -36,26 +36,10 @@ export default function ThemeStep() {
 
   return (
     <div className="bg-background text-foreground flex flex-col min-h-screen">
-      <StepHeader />
-      <StepNav currentStep={4} />
+      <StepNav currentStep={3} />
 
       <main className="grid px-6 md:px-10 py-8 flex-1 gap-8 lg:gap-10 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] max-w-7xl mx-auto w-full">
         <section className="rounded-xl bg-card border border-border flex p-6 flex-col min-w-0 shadow-sm">
-          {/* Progress Header */}
-          <div className="rounded-lg bg-muted border border-border flex mb-8 px-4 py-3 items-center gap-3">
-            <Film className="text-primary size-5" />
-            <div className="flex flex-1 gap-2">
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-            </div>
-            <span className="font-medium uppercase text-muted-foreground text-xs tracking-wider">
-              Theme setup
-            </span>
-          </div>
-
           <div className="flex flex-col flex-1">
             <div className="mb-6">
               <h1 className="font-semibold text-2xl tracking-tight !mb-0">
@@ -133,14 +117,14 @@ export default function ThemeStep() {
             <button
               type="button"
               className="font-medium rounded-md bg-card text-foreground text-sm border border-border inline-flex px-4 items-center gap-2 h-10 hover:bg-accent"
-              onClick={() => router.push("/captions-step")}
+              onClick={() => router.push("/voice-step")}
             >
               Back
             </button>
             <button
               type="button"
               className="font-semibold rounded-md bg-primary text-primary-foreground text-sm inline-flex px-5 items-center gap-2 h-10 hover:bg-primary/90"
-              onClick={() => router.push("/review-step")}
+              onClick={() => router.push("/captions-step")}
             >
               Continue
               <ArrowRight className="size-4" />
@@ -148,7 +132,7 @@ export default function ThemeStep() {
           </div>
         </section>
 
-        <LivePreview step={4} />
+        <LivePreview step={3} />
       </main>
     </div>
   );
