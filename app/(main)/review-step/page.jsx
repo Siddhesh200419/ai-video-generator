@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight,
-  Film,
   Loader2,
   Maximize,
   Pause,
@@ -12,14 +11,14 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { StepHeader, StepNav } from "@/components/creation/StepNav";
+import { StepNav } from "@/components/creation/StepNav";
 import { useCreationContext } from "@/_context/CreationContext";
 import { useAuthContext } from "@/app/provider";
 import toast from "react-hot-toast";
 
 export default function ReviewStep() {
   const router = useRouter();
-  const { formData, updateFormData } = useCreationContext();
+  const { formData, updateFormData, resetFormData } = useCreationContext();
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -83,6 +82,10 @@ export default function ReviewStep() {
 
       const result = await resp.json();
       toast.success("Generation started!");
+
+      // Clear all fields from script to review now that generation has started
+      resetFormData();
+
       const recordId = result.recordId || result.video?.id;
       if (recordId) {
         router.push(`/generation-progress?videoId=${recordId}`);
@@ -99,26 +102,10 @@ export default function ReviewStep() {
 
   return (
     <div className="bg-background text-foreground flex flex-col min-h-screen">
-      <StepHeader />
       <StepNav currentStep={5} />
 
       <main className="grid px-6 md:px-10 py-8 flex-1 gap-8 lg:gap-10 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] max-w-7xl mx-auto w-full">
         <section className="rounded-xl bg-card border border-border flex p-6 flex-col min-w-0 shadow-sm">
-          {/* Progress Header */}
-          <div className="rounded-lg bg-muted border border-border flex mb-8 px-4 py-3 items-center gap-3">
-            <Film className="text-primary size-5" />
-            <div className="flex flex-1 gap-2">
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-            </div>
-            <span className="font-medium uppercase text-muted-foreground text-xs tracking-wider">
-              Review ready
-            </span>
-          </div>
-
           <div className="flex flex-col flex-1">
             <div className="mb-6">
               <h1 className="font-semibold text-2xl tracking-tight !mb-0">
@@ -266,7 +253,7 @@ export default function ReviewStep() {
             <button
               type="button"
               className="font-medium rounded-md bg-card text-foreground text-sm border border-border inline-flex px-4 items-center gap-2 h-10 hover:bg-accent"
-              onClick={() => router.push("/theme-step")}
+              onClick={() => router.push("/captions-step")}
             >
               Back
             </button>
