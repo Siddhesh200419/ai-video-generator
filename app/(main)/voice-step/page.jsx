@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Film, Loader2, Pause, Play } from "lucide-react";
+import { ArrowRight, Loader2, Pause, Play } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { StepHeader, StepNav } from "@/components/creation/StepNav";
+import { StepNav } from "@/components/creation/StepNav";
 import LivePreview from "@/components/creation/LivePreview";
 import { useCreationContext } from "@/_context/CreationContext";
 import axios from "axios";
@@ -78,26 +78,10 @@ export default function VoiceStep() {
 
   return (
     <div className="bg-background text-foreground flex flex-col min-h-screen">
-      <StepHeader />
       <StepNav currentStep={2} />
 
       <main className="grid px-6 md:px-10 py-8 flex-1 gap-8 lg:gap-10 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] max-w-7xl mx-auto w-full">
         <section className="rounded-xl bg-card border border-border flex p-6 flex-col min-w-0 shadow-sm">
-          {/* Progress Header */}
-          <div className="rounded-lg bg-muted border border-border flex mb-8 px-4 py-3 items-center gap-3">
-            <Film className="text-primary size-5" />
-            <div className="flex flex-1 gap-2">
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-primary/70 flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-              <span className="rounded-sm bg-border flex-1 h-2" />
-            </div>
-            <span className="font-medium uppercase text-muted-foreground text-xs tracking-wider">
-              Voice setup
-            </span>
-          </div>
-
           <div className="flex flex-col flex-1 gap-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
@@ -231,7 +215,7 @@ export default function VoiceStep() {
             <button
               type="button"
               className="font-semibold rounded-md bg-primary text-primary-foreground text-sm inline-flex px-5 items-center gap-2 h-10 hover:bg-primary/90"
-              onClick={() => router.push("/captions-step")}
+              onClick={() => router.push("/theme-step")}
             >
               Continue
               <ArrowRight className="size-4" />
