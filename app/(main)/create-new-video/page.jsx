@@ -5,17 +5,19 @@ import VideoStyle from "./_components/VideoStyle";
 import Voice from "./_components/Voice";
 import Captions from "./_components/Captions";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Film, Loader2Icon, Save, WandSparkles } from "lucide-react";
+import { ArrowRight, Loader2Icon, WandSparkles } from "lucide-react";
 import Preview from "./_components/Preview";
 import { useAuthContext } from "@/app/provider";
+import { useCreationContext } from "@/_context/CreationContext";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-const STEPS = ["Content", "Style", "Voice & Captions", "Review"];
+const STEPS = ["Content", "Style", "Theme & Voice", "Review"];
 
 function CreateNewVideo() {
   const [formData, setFormData] = useState();
   const { user } = useAuthContext();
+  const { resetFormData } = useCreationContext();
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const router = useRouter();
@@ -90,6 +92,8 @@ function CreateNewVideo() {
     console.log("Video created:", result);
     setLoading(false);
     toast.success("Video generation started!");
+    setFormData(undefined);
+    resetFormData();
     router.push("/dashboard");
   };
 
@@ -141,26 +145,6 @@ function CreateNewVideo() {
       {/* Main Content */}
       <main className="grid px-4 md:px-10 py-8 flex-1 gap-10 grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-xl bg-card border border-border flex p-6 flex-col min-w-0">
-          {/* Progress Bar */}
-          <div className="rounded-lg bg-muted border border-border flex mb-8 px-4 py-3 items-center gap-3">
-            <Film className="text-primary size-5" />
-            <div className="flex flex-1 gap-2">
-              {[0, 1, 2, 3].map((i) => (
-                <span
-                  key={i}
-                  className={`rounded-sm flex-1 h-2 ${
-                    i < completedSteps ? "bg-primary/70" : "bg-border"
-                  }`}
-                />
-              ))}
-            </div>
-            <span className="font-medium uppercase text-muted-foreground text-xs tracking-wider">
-              {completedSteps === 4
-                ? "Ready"
-                : `Step ${completedSteps + 1} of 4`}
-            </span>
-          </div>
-
           {/* Step Content */}
           <div className="flex flex-col flex-1 gap-6">
             {/* Step 1: Content Strategy */}
