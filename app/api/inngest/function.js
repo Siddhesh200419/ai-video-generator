@@ -46,9 +46,8 @@ export const GenerateVideoData = inngest.createFunction(
 
     // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
     // Upload retries stay inside this step so a failed upload does NOT re-call Gemini.
-
-    // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
-    const GenerateAudioFile = await step.run("GenerateAudioFile", async () => {
+    // Started but not awaited here, so it runs in parallel with the image-prompt branch.
+    const audioPromise = step.run("GenerateAudioFile", async () => {
       const genAI = new GoogleGenerativeAI(
         process.env.GEMINI_API_KEY ||
         process.env.NEXT_PUBLIC_GEMINI_API_KEY
@@ -166,19 +165,8 @@ export const GenerateVideoData = inngest.createFunction(
     });
 
 
-    // Step 2: Generate Captions
-    const GenerateCaptions = await step.run("generateCaptions", async () => {
-      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
-      const { result, error } = await deepgram.listen.prerecorded.transcribeUrl(
-        { url: GenerateAudioFile },
-        { model: "nova-3" },
-      );
-      if (error) throw new Error(`Deepgram error: ${error.message}`);
-      return result.results?.channels[0]?.alternatives[0]?.words;
-    });
-
-    // Step 3: Generate Image Prompts
-    const GenerateImagePrompts = await step.run(
+    // Step 2: Generate Image Prompts (independent of audio → started now, awaited below)
+    const promptPromise = step.run(
       "generateImagePrompt",
       async () => {
         const FINAL_PROMPT = ImagePromptScript
@@ -207,6 +195,23 @@ export const GenerateVideoData = inngest.createFunction(
       },
     );
 
+    // Audio and image prompts only depend on the script, so run both branches together.
+    const [GenerateAudioFile, GenerateImagePrompts] = await Promise.all([
+      audioPromise,
+      promptPromise,
+    ]);
+
+    // Step 3: Generate Captions (needs the audio URL resolved above)
+    const GenerateCaptions = await step.run("generateCaptions", async () => {
+      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
+      const { result, error } = await deepgram.listen.prerecorded.transcribeUrl(
+        { url: GenerateAudioFile },
+        { model: "nova-3" },
+      );
+      if (error) throw new Error(`Deepgram error: ${error.message}`);
+      return result.results?.channels[0]?.alternatives[0]?.words;
+    });
+
     // Step 4: Generate Images via Cloudflare Workers AI FLUX → upload to S3
     const GenerateImages = await step.run("generateImages", async () => {
       // Validate Cloudflare credentials (server-side only)
@@ -219,71 +224,73 @@ export const GenerateVideoData = inngest.createFunction(
       }
 
       const fluxUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
-      const images = [];
 
-      for (let i = 0; i < GenerateImagePrompts.length; i++) {
-        const element = GenerateImagePrompts[i];
-        const rawPrompt = element?.imagePrompt || topic;
-        const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
+      // Generate + upload every scene concurrently instead of one-by-one.
+      // Promise.all preserves order, so images[] stays scene-0, scene-1, ...
+      const images = await Promise.all(
+        GenerateImagePrompts.map(async (element, i) => {
+          const rawPrompt = element?.imagePrompt || topic;
+          const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
 
-        console.log(
-          `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
-        );
+          console.log(
+            `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
+          );
 
-        // Call Cloudflare Workers AI FLUX
-        const fluxResponse = await axios.post(
-          fluxUrl,
-          { prompt: enhancedPrompt, steps: 4 },
-          {
-            headers: {
-              Authorization: `Bearer ${cfApiToken}`,
-              "Content-Type": "application/json",
+          // Call Cloudflare Workers AI FLUX
+          const fluxResponse = await axios.post(
+            fluxUrl,
+            { prompt: enhancedPrompt, steps: 4 },
+            {
+              headers: {
+                Authorization: `Bearer ${cfApiToken}`,
+                "Content-Type": "application/json",
+              },
+              timeout: 120_000, // 2-minute timeout per image
             },
-            timeout: 120_000, // 2-minute timeout per image
-          },
-        );
-
-        // Validate the response structure
-        const base64Image = fluxResponse.data?.result?.image;
-        if (!base64Image || typeof base64Image !== "string") {
-          throw new Error(
-            `FLUX did not return image data for scene ${i + 1}. ` +
-            `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
           );
-        }
 
-        // Decode Base64 JPEG into a buffer
-        const imageBuffer = Buffer.from(base64Image, "base64");
-        if (imageBuffer.length < 100) {
-          throw new Error(
-            `FLUX returned an unexpectedly small image for scene ${i + 1} (${imageBuffer.length} bytes)`,
-          );
-        }
-
-        // Upload to S3 using the existing storage helper
-        const s3Key = `images/${recordId}/scene-${i}.jpg`;
-        let imageUrl;
-        let lastErr;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            imageUrl = await uploadFile(imageBuffer, s3Key, "image/jpeg");
-            break;
-          } catch (e) {
-            lastErr = e;
-            console.error(
-              `S3 image upload attempt ${attempt + 1} for scene ${i + 1} failed:`,
-              e?.message || e,
+          // Validate the response structure
+          const base64Image = fluxResponse.data?.result?.image;
+          if (!base64Image || typeof base64Image !== "string") {
+            throw new Error(
+              `FLUX did not return image data for scene ${i + 1}. ` +
+              `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
             );
-            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
           }
-        }
-        if (!imageUrl) {
-          throw lastErr;
-        }
 
-        console.log(`[generateImages] Scene ${i + 1} uploaded to S3: ${imageUrl}`);
-        images.push(imageUrl);
-      }
+          // Decode Base64 JPEG into a buffer
+          const imageBuffer = Buffer.from(base64Image, "base64");
+          if (imageBuffer.length < 100) {
+            throw new Error(
+              `FLUX returned an unexpectedly small image for scene ${i + 1} (${imageBuffer.length} bytes)`,
+            );
+          }
+
+          // Upload to S3 using the existing storage helper
+          const s3Key = `images/${recordId}/scene-${i}.jpg`;
+          let imageUrl;
+          let lastErr;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              imageUrl = await uploadFile(imageBuffer, s3Key, "image/jpeg");
+              break;
+            } catch (e) {
+              lastErr = e;
+              console.error(
+                `S3 image upload attempt ${attempt + 1} for scene ${i + 1} failed:`,
+                e?.message || e,
+              );
+              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+            }
+          }
+          if (!imageUrl) {
+            throw lastErr;
+          }
+
+          console.log(`[generateImages] Scene ${i + 1} uploaded to S3: ${imageUrl}`);
+          return imageUrl;
+        }),
+      );
 
       return images;
     });
@@ -326,7 +333,13 @@ export const GenerateVideoData = inngest.createFunction(
         codec: "h264",
         imageFormat: "jpeg",
         maxRetries: 1,
-        concurrency: 4,
+        // Number of parallel render Lambda functions (Remotion splits the video
+        // into this many chunks). This is capped by your AWS account's Lambda
+        // concurrency quota — setting it too high triggers
+        // "AWS Concurrency limit reached". Once you raise the quota in AWS Service
+        // Quotas (Lambda → Concurrent executions), bump RENDER_CONCURRENCY.
+        // NOTE: `concurrency` and `framesPerLambda` are mutually exclusive in Remotion.
+        concurrency: Number(process.env.RENDER_CONCURRENCY) || 8,
         privacy: "public",
       });
 
@@ -344,7 +357,7 @@ export const GenerateVideoData = inngest.createFunction(
           functionName: RenderVideo.functionName,
         });
         if (!progress.done) {
-          await new Promise((r) => setTimeout(r, 10000));
+          await new Promise((r) => setTimeout(r, 2500));
         }
       } while (!progress.done && !progress.fatalErrorEncountered);
 
