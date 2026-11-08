@@ -16,11 +16,13 @@ import { Input } from "@/components/ui/input";
 import RemotionPlayer from "../play-video/_components/RemotionPlayer";
 import toast from "react-hot-toast";
 import { triggerConfetti } from "@/lib/confetti";
+import { useCreationContext } from "@/_context/CreationContext";
 
 function VideoResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const videoId = searchParams.get("videoId");
+  const { resetFormData } = useCreationContext();
   const [videoData, setVideoData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -39,6 +41,7 @@ function VideoResultContent() {
           setVideoData(data);
           if (data?.status === "completed") {
             triggerConfetti();
+            resetFormData();
           }
         }
       } catch (err) {
@@ -91,7 +94,10 @@ function VideoResultContent() {
           </Link>
           <Button
             className="bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={() => router.push("/script-step")}
+            onClick={() => {
+              resetFormData();
+              router.push("/script-step");
+            }}
           >
             Create another
           </Button>
@@ -150,14 +156,20 @@ function VideoResultContent() {
               <Button
                 variant="ghost"
                 className="w-full"
-                onClick={() => router.push("/script-step")}
+                onClick={() => {
+                  resetFormData();
+                  router.push("/script-step");
+                }}
               >
                 Create another
               </Button>
               <button
                 type="button"
                 className="font-medium transition-colors text-primary text-sm inline-flex mt-2 justify-center items-center gap-2 hover:text-primary/80"
-                onClick={() => router.push("/script-step")}
+                onClick={() => {
+                  resetFormData();
+                  router.push("/script-step");
+                }}
               >
                 <Pencil className="size-4" />
                 Edit and regenerate text
