@@ -81,7 +81,7 @@ function VideoResultContent() {
 
   return (
     <div className="bg-background text-foreground min-h-screen w-full">
-      <header className="border-b flex px-6 md:px-12 py-5 justify-between items-center bg-card">
+      {/* <header className="border-b flex px-6 md:px-12 py-5 justify-between items-center bg-card">
         <Link href="/" className="font-semibold text-xl tracking-tight">
           ReelForge
         </Link>
@@ -102,7 +102,7 @@ function VideoResultContent() {
             Create another
           </Button>
         </nav>
-      </header>
+      </header> */}
 
       <main className="grid mx-auto p-6 md:p-12 gap-8 lg:gap-12 grid-cols-1 lg:grid-cols-2 max-w-7xl">
         {/* Left Side: Remotion Video Player */}
