@@ -20,6 +20,7 @@ import Link from "next/link";
 import React, { useEffect, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import { triggerConfetti } from "@/lib/confetti";
+import { useCreationContext } from "@/_context/CreationContext";
 
 function VideoList() {
   const [videoList, setVideoList] = useState([]);
@@ -27,13 +28,11 @@ function VideoList() {
   const [filter, setFilter] = useState("all");
   const [justCompletedId, setJustCompletedId] = useState(null);
   const { user } = useAuthContext();
+  const { resetFormData } = useCreationContext();
   const pollingIntervals = useRef(new Map());
 
   const getVideoTitle = (v) => {
     const t = v?.title?.trim();
-    if (t && t !== "w" && t !== "W") {
-      return t;
-    }
     return v?.topic?.trim() || "Untitled Short";
   };
 
@@ -99,6 +98,7 @@ function VideoList() {
           if (video?.status === "completed") {
             // 🎉 Trigger celebratory confetti animation!
             triggerConfetti();
+            resetFormData();
             const title = getVideoTitle(video);
             toast.success(`🎉 "${title}" is ready!`, { duration: 5000 });
             setJustCompletedId(videoId);
@@ -222,8 +222,8 @@ function VideoList() {
               ? "You haven't created any videos yet."
               : `No ${filter} videos found.`}
           </h2>
-          <Link href="/create-new-video">
-            <Button size="lg" className="shadow-md gap-2">
+          <Link href="/script-step">
+            <Button size="lg" className="shadow-md gap-2" onClick={() => resetFormData()}>
               <Plus className="size-4" />
               Create New Video
             </Button>
@@ -348,8 +348,8 @@ function VideoList() {
             Turn your next idea into something worth watching.
           </p>
         </div>
-        <Link href="/create-new-video">
-          <Button className="gap-2">
+        <Link href="/script-step">
+          <Button className="gap-2" onClick={() => resetFormData()}>
             <SquarePen className="size-4" />
             Start creating
           </Button>
