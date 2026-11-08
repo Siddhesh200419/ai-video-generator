@@ -6,11 +6,13 @@ import { Check, Loader2, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { triggerConfetti } from "@/lib/confetti";
+import { useCreationContext } from "@/_context/CreationContext";
 
 function GenerationProgressContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const videoId = searchParams.get("videoId");
+  const { resetFormData } = useCreationContext();
   const [videoData, setVideoData] = useState(null);
   const [percent, setPercent] = useState(25);
   const [hasError, setHasError] = useState(false);
@@ -28,6 +30,7 @@ function GenerationProgressContent() {
         if (data.status === "completed") {
           setPercent(100);
           triggerConfetti();
+          resetFormData();
           setTimeout(() => {
             router.push(`/video-result?videoId=${videoId}`);
           }, 1200);
