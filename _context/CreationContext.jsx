@@ -8,23 +8,16 @@ const STORAGE_KEY = "reelforge_creation_data";
 const initialData = {
   title: "",
   topic: "",
-  theme: "Facts",
+  theme: "",
   customTopic: "",
   script: "",
   scripts: [],
   selectedScriptIndex: null,
-  voice: "Nova",
+  voice: "",
   voiceSpeed: 1.0,
-  caption: {
-    name: "Bold word-by-word highlight",
-    style: "text-yellow-400 text-3xl font-extrabold uppercase tracking-wide",
-    font: "Bricolage Grotesque",
-    size: 56,
-    position: "bottom",
-    color: "#f59e0b",
-  },
-  videoStyle: "Cinematic",
-  mood: "Lo-fi",
+  caption: null,
+  videoStyle: "",
+  mood: "",
   filmGrain: false,
 };
 
@@ -50,7 +43,20 @@ export function CreationProvider({ children }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        const hasContent = Boolean(
+          formData.title?.trim() ||
+          formData.topic?.trim() ||
+          formData.script?.trim() ||
+          formData.voice ||
+          formData.videoStyle ||
+          (formData.scripts && formData.scripts.length > 0)
+        );
+
+        if (hasContent) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       } catch (e) {
         console.error("Error saving creation data", e);
       }
@@ -67,7 +73,11 @@ export function CreationProvider({ children }) {
   const resetFormData = () => {
     setFormData(initialData);
     if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        console.error("Error clearing saved creation data", e);
+      }
     }
   };
 
