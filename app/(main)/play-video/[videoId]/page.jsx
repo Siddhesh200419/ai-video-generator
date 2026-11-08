@@ -1,7 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import RemotionPlayer from "../_components/RemotionPlayer";
+import dynamic from "next/dynamic";
 import VideoInfo from "../_components/VideoInfo";
+
+const RemotionPlayer = dynamic(
+  () => import("../_components/RemotionPlayer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center w-full max-w-[400px] aspect-[9/16]">
+        <LoaderCircle className="size-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 import { useParams } from "next/navigation";
 import { Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Progress } from "@/components/ui/progress";

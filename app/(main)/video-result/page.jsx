@@ -13,8 +13,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import RemotionPlayer from "../play-video/_components/RemotionPlayer";
+import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
+
+const RemotionPlayer = dynamic(
+  () => import("../play-video/_components/RemotionPlayer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center w-full h-96">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 import { triggerConfetti } from "@/lib/confetti";
 import { useCreationContext } from "@/_context/CreationContext";
 

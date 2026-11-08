@@ -13,6 +13,19 @@ function DashboardProvider({ children }) {
     user && CheckedUserAuthenticated();
   }, [user]);
 
+  useEffect(() => {
+    [
+      "/script-step",
+      "/voice-step",
+      "/theme-step",
+      "/captions-step",
+      "/review-step",
+      "/dashboard",
+      "/my-videos",
+      "/video-result",
+    ].forEach((route) => router.prefetch(route));
+  }, [router]);
+
   const CheckedUserAuthenticated = () => {
     if (!user) {
       router.replace("/");
