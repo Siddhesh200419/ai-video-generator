@@ -1,10 +1,10 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import React from "react";
 import { useAuthContext } from "../provider";
 import Link from "next/link";
 import { ModeToggle } from "@/components/mode-toggle";
+import UserMenu from "@/components/UserMenu";
 
 function Header() {
   const { user } = useAuthContext();
@@ -58,20 +58,7 @@ function Header() {
                 Dashboard
               </Button>
             </Link>
-            {user?.pictureURL ? (
-              <div className="relative h-9 w-9 ring-2 ring-border rounded-full overflow-hidden">
-                <Image
-                  className="object-cover"
-                  src={user.pictureURL}
-                  alt="userImage"
-                  fill
-                />
-              </div>
-            ) : (
-              <div className="size-9 rounded-full bg-primary text-primary-foreground font-semibold flex items-center justify-center text-xs">
-                {user?.name?.slice(0, 2)?.toUpperCase() || "RF"}
-              </div>
-            )}
+            <UserMenu user={user} />
           </div>
         )}
       </nav>
