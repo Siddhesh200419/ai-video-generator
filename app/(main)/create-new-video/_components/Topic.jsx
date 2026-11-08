@@ -117,8 +117,8 @@ function Topic({ onHandleInputChange }) {
 
       toast.error(
         error?.response?.data?.error ||
-          error?.message ||
-          "Failed to generate scripts. Please try again.",
+        error?.message ||
+        "Failed to generate scripts. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -155,15 +155,15 @@ function Topic({ onHandleInputChange }) {
 
       {/* Theme / Category */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="font-medium text-sm">Choose a genre</span>
+        <div className="flex items-center justify-between ">
+          <span className="font-medium text-sm cursor-pointer">Choose a genre</span>
           {selectTopic && (
-            <span className="text-xs text-primary font-medium">
+            <span className="text-xs text-primary font-medium ">
               Selected: {selectTopic}
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 ">
           {suggestions.map((suggestion, index) => {
             const isSelected = suggestion === selectTopic;
             return (
@@ -172,11 +172,10 @@ function Topic({ onHandleInputChange }) {
                 variant={isSelected ? "default" : "outline"}
                 size="sm"
                 key={index}
-                className={`text-xs transition-all ${
-                  isSelected
+                className={`cursor-pointer text-xs transition-all  ${isSelected
                     ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                     : "hover:border-primary/50"
-                }`}
+                  }`}
                 onClick={() => handleThemeClick(suggestion)}
               >
                 {suggestion}
@@ -209,7 +208,7 @@ function Topic({ onHandleInputChange }) {
         <Button
           type="button"
           size="default"
-          className="font-semibold rounded-md bg-primary text-primary-foreground text-sm gap-2 shadow-md"
+          className="cursor-pointer font-semibold rounded-md bg-primary text-primary-foreground text-sm gap-2 shadow-md"
           disabled={loading}
           onClick={GenerateScript}
         >
@@ -244,11 +243,10 @@ function Topic({ onHandleInputChange }) {
                   role="button"
                   tabIndex={0}
                   aria-pressed={isSelected}
-                  className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 relative ${
-                    isSelected
+                  className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 relative ${isSelected
                       ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary"
                       : "border-border/60 hover:border-primary/50 hover:bg-muted/40"
-                  }`}
+                    }`}
                   onClick={() => {
                     setSelectedScriptIndex(index);
                     onHandleInputChange("script", item.content);
