@@ -112,12 +112,12 @@ function VideoInfo({ videoData }) {
             <span className="text-muted-foreground">Title</span>
             <span className="font-medium">{videoData?.title}</span>
           </div>
-          <div className="text-sm border-b flex py-4 justify-between items-center">
+          {/* <div className="text-sm border-b flex py-4 justify-between items-center">
             <span className="text-muted-foreground">Script</span>
             <span className="font-medium max-w-[200px] truncate">
               {videoData?.script?.substring(0, 50)}...
             </span>
-          </div>
+          </div> */}
           <div className="text-sm border-b flex py-4 justify-between items-center">
             <span className="text-muted-foreground">Style</span>
             <span className="font-medium">{videoData?.videoStyle}</span>
