@@ -53,8 +53,12 @@ export default function ScriptStep() {
     }
   };
 
+  const canGenerate = Boolean(
+    formData.title?.trim() && formData.topic?.trim() && formData.theme?.trim()
+  );
+
   const handleGenerateScripts = async () => {
-    if (loading) return;
+    if (loading || !canGenerate) return;
     const finalTopic = formData.topic?.trim() || formData.title?.trim();
     const finalTheme = formData.theme?.trim() || "Facts";
 
@@ -191,9 +195,9 @@ export default function ScriptStep() {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || !canGenerate}
                 onClick={handleGenerateScripts}
-                className="font-semibold rounded-md bg-primary text-primary-foreground text-sm inline-flex px-5 items-center gap-2 h-10 hover:bg-primary/90 transition-all disabled:opacity-50"
+                className="font-semibold rounded-md bg-primary text-primary-foreground text-sm inline-flex px-5 items-center gap-2 h-10 hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2Icon className="size-4 animate-spin" />
