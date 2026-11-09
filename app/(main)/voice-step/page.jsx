@@ -170,7 +170,7 @@ export default function VoiceStep() {
             )}
 
             {/* Speed slider */}
-            <div className="flex flex-col gap-2">
+            {/* <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm">Playback speed</span>
                 <span className="font-mono text-sm text-primary font-medium">
@@ -189,10 +189,10 @@ export default function VoiceStep() {
                 />
                 <span className="font-medium text-xs text-muted-foreground">1.2x</span>
               </div>
-            </div>
+            </div> */}
 
             {/* Sample phrase card */}
-            <div className="rounded-lg bg-card border border-border p-5 shadow-xs">
+            {/* <div className="rounded-lg bg-card border border-border p-5 shadow-xs">
               <p className="text-foreground text-base leading-7 italic !mt-0">
                 &ldquo;
                 {formData.script
@@ -200,7 +200,7 @@ export default function VoiceStep() {
                   : "Ever wonder why one tiny chorus can loop in your brain for hours?"}
                 &rdquo;
               </p>
-            </div>
+            </div> */}
           </div>
 
           {/* Navigation Bar */}
