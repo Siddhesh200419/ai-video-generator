@@ -14,14 +14,19 @@ const RemotionPlayer = dynamic(
     ),
   }
 );
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { useAuthContext } from "@/app/provider";
+import toast from "react-hot-toast";
 
 function PlayVideoPage() {
   const { videoId } = useParams();
+  const router = useRouter();
+  const { user } = useAuthContext();
   const [videoData, setVideoData] = useState();
+  const [deleting, setDeleting] = useState(false);
 
   const fetchVideo = async () => {
     const resp = await fetch(`/api/video/${videoId}`);
@@ -54,6 +59,26 @@ function PlayVideoPage() {
     videoData?.status === "pending" || videoData?.status === "generating";
   const isFailed = videoData?.status === "failed";
   const isReady = videoData?.status === "completed";
+
+  const handleDelete = async () => {
+    if (!user?.id || !videoId) return;
+    setDeleting(true);
+    try {
+      const resp = await fetch(`/api/video/${videoId}?uid=${user.id}`, {
+        method: "DELETE",
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to delete video");
+      }
+      toast.success("Video deleted");
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error(err.message || "Failed to delete video");
+      setDeleting(false);
+    }
+  };
 
   const displayTitle =
     videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
@@ -204,7 +229,11 @@ function PlayVideoPage() {
         <RemotionPlayer videoData={enrichedVideoData} />
       </div>
       <div>
-        <VideoInfo videoData={enrichedVideoData} />
+        <VideoInfo
+          videoData={enrichedVideoData}
+          onDelete={handleDelete}
+          deleting={deleting}
+        />
       </div>
     </div>
   );
