@@ -6,6 +6,7 @@
   integer,
   jsonb,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -55,4 +56,4 @@ export const videoData = pgTable("video_data", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
-});
+}, (table) => [index("video_data_uid_idx").on(table.uid)]);

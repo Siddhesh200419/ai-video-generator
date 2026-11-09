@@ -1,0 +1,1 @@
+CREATE INDEX "video_data_uid_idx" ON "video_data" USING btree ("uid");
