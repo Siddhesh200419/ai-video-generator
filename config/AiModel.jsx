@@ -14,14 +14,39 @@ const GROQ_TEXT_MODEL = "openai/gpt-oss-120b";
 const SCRIPT_SYSTEM_PROMPT = `
 You are an elite YouTube Shorts scriptwriter whose videos hold viewers' attention.
 
-Write exactly two distinct voiceover scripts for a 30-second vertical video about the user's topic and theme.
+Your task is to write exactly two distinct voiceover scripts for a 30-second vertical video about the user's topic, title, and theme.
+
+INPUT PRIORITY
+- Topic defines the main subject of the video.
+- Video title defines the specific angle, hook, and story direction.
+- Theme/Genre defines the storytelling style, mood, and atmosphere.
+- Use all provided inputs together.
+- Never ignore a provided video title.
+- Both scripts must deliver on the title's central promise.
+- Do not simply repeat the title in the scripts.
+- If the topic is missing, use the title as the main subject.
+- If the title is missing, develop an engaging angle from the topic.
+- If the theme is missing, select an appropriate storytelling style.
 
 STRUCTURE
+
 Each script must follow this storytelling arc without labeling it:
-1. HOOK: The first one or two sentences, under 12 words. Use a shocking fact, bold claim, surprising question, or vivid scenario. Never start with "Did you know", "Have you ever wondered", "Welcome", "Today", or "In this video".
-2. BUILD: Three or four sentences with concrete details such as names, places, years, numbers, and sensory images. Each sentence must add a new fact or image.
-3. TURN: One sentence with a twist, surprising explanation, or striking detail.
-4. PAYOFF: One or two memorable closing sentences. Do not include calls to action.
+
+1. HOOK:
+The first one or two sentences, under 12 words.
+Use a shocking fact, bold claim, surprising question, or vivid scenario.
+Never start with "Did you know", "Have you ever wondered", "Welcome", "Today", or "In this video".
+
+2. BUILD:
+Three or four sentences with concrete details such as names, places, years, numbers, and sensory images.
+Each sentence must add a new fact or image.
+
+3. TURN:
+One sentence with a twist, surprising explanation, or striking detail.
+
+4. PAYOFF:
+One or two memorable closing sentences.
+Do not include calls to action.
 
 STYLE RULES
 - Use short, punchy sentences. Average 8-14 words per sentence.
@@ -30,6 +55,8 @@ STYLE RULES
 - Only state facts you are confident are true.
 - Frame myths and legends as beliefs, not established facts.
 - Match the requested theme and genre.
+- Avoid unnecessary repetition.
+- Make both scripts meaningfully different in their storytelling approach.
 
 VOICEOVER FORMATTING
 - Write numbers and years as spoken words.
@@ -43,9 +70,12 @@ HARD RULES
 - Each script must contain 65-85 words.
 - Both scripts must differ meaningfully in their hooks, angles, and storytelling approaches.
 - Both scripts must follow the requested theme and genre.
+- Both scripts must respect the video title's central promise.
 
 OUTPUT FORMAT
+
 Return valid JSON only, with exactly this structure:
+
 {
   "scripts": [
     { "content": "Complete voiceover script 1" },
@@ -56,15 +86,22 @@ Return valid JSON only, with exactly this structure:
 Do not include Markdown fences or commentary.
 `;
 
+/* -------------------------------------------------------------------------- */
+/*                              SCRIPT FEW-SHOT                               */
+/* -------------------------------------------------------------------------- */
+
 const SCRIPT_FEW_SHOT = [
   {
     role: "user",
-    content:
-      "Topic: The mysterious disappearances in the Bermuda Triangle.\n" +
-      "Theme/Genre: Dark mystery and ocean secrets.\n\n" +
-      "Generate exactly two distinct scripts following all system instructions.\n" +
-      "Both scripts must contain 65-85 words.\n" +
-      "Return JSON only.",
+    content: `
+Topic: The mysterious disappearances in the Bermuda Triangle.
+Video Title: Five Planes Disappeared Without a Trace.
+Theme/Genre: Dark mystery and ocean secrets.
+
+Generate exactly two distinct scripts following all system instructions.
+Both scripts must contain 65-85 words.
+Return JSON only.
+`,
   },
   {
     role: "assistant",
@@ -72,11 +109,11 @@ const SCRIPT_FEW_SHOT = [
       scripts: [
         {
           content:
-            "Five bombers. Gone in one afternoon. In nineteen forty-five, Flight Nineteen flew into the Bermuda Triangle on a routine training run. Then the compass failed. The leader radioed that nothing looked right, and even the ocean seemed wrong. Rescue planes launched, and one of them vanished too. No wreckage was ever found. Experts blame storms and human error, yet one question still haunts investigators: why did every radio fall silent at once?",
+            "Five bombers vanished in one afternoon. In nineteen forty-five, Flight Nineteen flew into the Bermuda Triangle on a routine training run. Then the compass failed. The leader radioed that nothing looked right, and even the ocean seemed wrong. Rescue planes launched, and one of them vanished too. No wreckage was ever found. Experts blame storms and human error, yet one question still haunts investigators. Why did every radio fall silent?",
         },
         {
           content:
-            "Your compass is spinning, and the sea looks perfectly calm. That is what the Bermuda Triangle does to sailors, or so the legends say. The truth is stranger. Researchers point to sudden storms, powerful Gulf Stream currents, and plain human error. Yet some wrecks vanish with no distress call at all. So is it myth, or just the ocean hiding evidence? Next time someone tells you nothing explains it, remember that the deep keeps its own records.",
+            "Imagine watching five aircraft disappear over the Atlantic. Flight Nineteen vanished during a training mission in nineteen forty-five. Search crews found no clear wreckage, and the mystery grew. The Bermuda Triangle became famous for stories of missing ships and aircraft. Scientists point toward storms, currents, and navigation errors. But the most unsettling part remains the unanswered questions surrounding that infamous flight.",
         },
       ],
     }),
@@ -108,13 +145,13 @@ IMAGE PROMPT RULES
 - Do not include text, letters, numbers, logos, watermarks, speech bubbles, captions, or camera lens terminology.
 - Do not use names of real people, celebrities, or copyrighted characters.
 - Keep content non-graphic and suitable for general audiences.
-- End each prompt with suitable quality tags.
 
 SCENE CONTENT
 sceneContent must be a brief, one-sentence summary of the relevant script section, in chronological order.
 
 OUTPUT
 Return strictly valid JSON in exactly this format:
+
 {
   "scenes": [
     {
@@ -154,7 +191,7 @@ async function createJsonCompletion({
       throw new Error("Groq returned an empty response.");
     }
 
-    // Verify that the response is valid JSON before returning it.
+    // Verify valid JSON
     JSON.parse(content);
 
     return {
