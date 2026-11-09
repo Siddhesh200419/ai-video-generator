@@ -9,14 +9,16 @@ import {
   Link as LinkIcon,
   Loader2Icon,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 
-function VideoInfo({ videoData }) {
+function VideoInfo({ videoData, onDelete, deleting }) {
   const isReady = !!videoData?.downloadUrl;
   const [copied, setCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const displayTitle =
     videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
@@ -102,6 +104,49 @@ function VideoInfo({ videoData }) {
             </>
           )}
         </div>
+
+        {onDelete && (
+          <div className="border-t mt-6 pt-6">
+            {confirmingDelete ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-muted-foreground text-sm">
+                  Delete this video permanently?
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-2"
+                  disabled={deleting}
+                  onClick={onDelete}
+                >
+                  {deleting ? (
+                    <Loader2Icon className="animate-spin size-4" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Delete
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={deleting}
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                <Trash2 className="size-4" />
+                Delete video
+              </Button>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Video Details Card */}
