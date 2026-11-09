@@ -27,6 +27,8 @@ function VideoList() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
   const [justCompletedId, setJustCompletedId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const { user } = useAuthContext();
   const { resetFormData } = useCreationContext();
   const pollingIntervals = useRef(new Map());
@@ -116,6 +118,36 @@ function VideoList() {
     }, 4000);
 
     pollingIntervals.current.set(videoId, intervalId);
+  };
+
+  const handleDelete = async (videoId) => {
+    if (!user?.id) return;
+    setDeletingId(videoId);
+    try {
+      const resp = await fetch(`/api/video/${videoId}?uid=${user.id}`, {
+        method: "DELETE",
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to delete video");
+      }
+
+      // Stop polling this video, if a job was still running.
+      const intervalId = pollingIntervals.current.get(videoId);
+      if (intervalId) {
+        clearInterval(intervalId);
+        pollingIntervals.current.delete(videoId);
+      }
+
+      setVideoList((prev) => prev.filter((v) => v.id !== videoId));
+      toast.success("Video deleted");
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error(err.message || "Failed to delete video");
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
   };
 
   const filteredVideos = videoList.filter((v) => {
@@ -265,6 +297,51 @@ function VideoList() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   )}
 
+                  {/* Delete control (top-right, revealed on hover) */}
+                  <div className="absolute top-3 right-3 z-10 transition-opacity opacity-0 group-hover:opacity-100">
+                    {confirmDeleteId === video.id ? (
+                      <div className="rounded-lg bg-card/95 shadow-sm flex p-1 items-center gap-1">
+                        <span className="px-2 text-xs font-medium whitespace-nowrap">
+                          Delete?
+                        </span>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7"
+                          disabled={deletingId === video.id}
+                          onClick={() => handleDelete(video.id)}
+                        >
+                          {deletingId === video.id ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3" />
+                          )}
+                          Yes
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7"
+                          disabled={deletingId === video.id}
+                          onClick={() => setConfirmDeleteId(null)}
+                        >
+                          No
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="size-9"
+                        title="Delete video"
+                        aria-label="Delete video"
+                        onClick={() => setConfirmDeleteId(video.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+
                   {/* Action Buttons */}
                   <div className="shadow-sm rounded-lg bg-card/90 flex absolute inset-x-4 bottom-4 p-2 justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {video.status === "completed" && (
@@ -336,7 +413,7 @@ function VideoList() {
       )}
 
       {/* Bottom CTA */}
-      <Card className="shadow-sm rounded-xl bg-card border flex mt-10 p-8 items-center gap-8">
+      {/* <Card className="shadow-sm rounded-xl bg-card border flex mt-10 p-8 items-center gap-8">
         <div className="rounded-lg bg-accent text-accent-foreground flex justify-center items-center shrink-0 size-32">
           <Film className="size-16" />
         </div>
@@ -354,7 +431,7 @@ function VideoList() {
             Start creating
           </Button>
         </Link>
-      </Card>
+      </Card> */}
     </div>
   );
 }
