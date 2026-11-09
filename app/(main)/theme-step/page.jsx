@@ -88,7 +88,7 @@ export default function ThemeStep() {
             </div>
 
             {/* Set the mood */}
-            <div className="mt-8 pt-6 border-t border-border">
+            {/* <div className="mt-8 pt-6 border-t border-border">
               <h2 className="font-semibold text-base mb-3 !mb-3">Set the mood</h2>
               <div className="flex flex-wrap items-center gap-2.5">
                 {moods.map((mood) => {
@@ -109,7 +109,7 @@ export default function ThemeStep() {
                   );
                 })}
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Navigation Bar */}
