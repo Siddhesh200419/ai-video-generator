@@ -47,6 +47,12 @@ export const videoData = pgTable("video_data", {
   status: varchar("status", { length: 50 }).notNull().default("pending"),
   errorMessage: text("error_message"), // populated when status = 'failed'
 
+  // Live pipeline progress, driven by the Inngest function so the UI can
+  // mirror the real execution instead of simulating it.
+  // currentStep: 'queued' | 'audio' | 'scenes' | 'captions' | 'render'
+  currentStep: varchar("current_step", { length: 50 }).notNull().default("queued"),
+  progress: integer("progress").notNull().default(0), // 0-100
+
   // Relations & ownership
   uid: uuid("uid")
     .notNull()

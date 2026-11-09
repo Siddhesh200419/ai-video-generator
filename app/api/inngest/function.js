@@ -44,9 +44,18 @@ export const GenerateVideoData = inngest.createFunction(
     const { script, topic, title, caption, videoStyle, voice, recordId } =
       event?.data;
 
+    // Live progress helper — the UI polls /api/video/[id] and mirrors whatever
+    // step the pipeline is actually on instead of simulating it.
+    const markStep = (stepName, progress) =>
+      db
+        .update(videoData)
+        .set({ currentStep: stepName, progress, status: "generating" })
+        .where(eq(videoData.id, recordId));
+
     // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
     // Upload retries stay inside this step so a failed upload does NOT re-call Gemini.
     // Started but not awaited here, so it runs in parallel with the image-prompt branch.
+    await step.run("MarkAudioStep", () => markStep("audio", 10));
     const audioPromise = step.run("GenerateAudioFile", async () => {
       const genAI = new GoogleGenerativeAI(
         process.env.GEMINI_API_KEY ||
@@ -201,18 +210,8 @@ export const GenerateVideoData = inngest.createFunction(
       promptPromise,
     ]);
 
-    // Step 3: Generate Captions (needs the audio URL resolved above)
-    const GenerateCaptions = await step.run("generateCaptions", async () => {
-      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
-      const { result, error } = await deepgram.listen.prerecorded.transcribeUrl(
-        { url: GenerateAudioFile },
-        { model: "nova-3" },
-      );
-      if (error) throw new Error(`Deepgram error: ${error.message}`);
-      return result.results?.channels[0]?.alternatives[0]?.words;
-    });
-
-    // Step 4: Generate Images via Cloudflare Workers AI FLUX → upload to S3
+    // Step 3: Generate Images via Cloudflare Workers AI FLUX → upload to S3
+    await step.run("MarkScenesStep", () => markStep("scenes", 35));
     const GenerateImages = await step.run("generateImages", async () => {
       // Validate Cloudflare credentials (server-side only)
       const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -295,6 +294,18 @@ export const GenerateVideoData = inngest.createFunction(
       return images;
     });
 
+    // Step 4: Generate Captions (Deepgram, needs the audio URL resolved above)
+    await step.run("MarkCaptionsStep", () => markStep("captions", 60));
+    const GenerateCaptions = await step.run("generateCaptions", async () => {
+      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
+      const { result, error } = await deepgram.listen.prerecorded.transcribeUrl(
+        { url: GenerateAudioFile },
+        { model: "nova-3" },
+      );
+      if (error) throw new Error(`Deepgram error: ${error.message}`);
+      return result.results?.channels[0]?.alternatives[0]?.words;
+    });
+
     // Step 5: Save audio + images to Neon (status = generating)
     await step.run("UpdateDB", async () => {
       await db
@@ -309,6 +320,7 @@ export const GenerateVideoData = inngest.createFunction(
     });
 
     // Step 6: Render video via Remotion Lambda
+    await step.run("MarkRenderStep", () => markStep("render", 65));
     const RenderVideo = await step.run("RenderVideo", async () => {
       const services = await getFunctions({
         region: "us-east-1",
@@ -356,6 +368,23 @@ export const GenerateVideoData = inngest.createFunction(
           bucketName: RenderVideo.bucketName,
           functionName: RenderVideo.functionName,
         });
+
+        // Push Remotion's real render percentage to the DB (65% → 99%) so the
+        // progress page mirrors the actual render, not a simulated bar.
+        const renderPct =
+          typeof progress.overallProgress === "number"
+            ? progress.overallProgress
+            : typeof progress.progress === "number"
+              ? progress.progress
+              : 0;
+        await db
+          .update(videoData)
+          .set({
+            currentStep: "render",
+            progress: Math.min(99, 65 + Math.round(renderPct * 34)),
+          })
+          .where(eq(videoData.id, recordId));
+
         if (!progress.done) {
           await new Promise((r) => setTimeout(r, 2500));
         }
@@ -378,7 +407,7 @@ export const GenerateVideoData = inngest.createFunction(
 
       await db
         .update(videoData)
-        .set({ downloadUrl, status: "completed" })
+        .set({ downloadUrl, status: "completed", currentStep: "done", progress: 100 })
         .where(eq(videoData.id, recordId));
 
       return downloadUrl;

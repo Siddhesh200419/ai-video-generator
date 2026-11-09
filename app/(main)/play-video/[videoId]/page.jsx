@@ -19,6 +19,7 @@ import { Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/app/provider";
+import { PIPELINE_STEPS, getStepState } from "@/lib/videoProgress";
 import toast from "react-hot-toast";
 
 function PlayVideoPage() {
@@ -59,6 +60,7 @@ function PlayVideoPage() {
     videoData?.status === "pending" || videoData?.status === "generating";
   const isFailed = videoData?.status === "failed";
   const isReady = videoData?.status === "completed";
+  const percent = videoData?.progress ?? 0;
 
   const handleDelete = async () => {
     if (!user?.id || !videoId) return;
@@ -105,59 +107,60 @@ function PlayVideoPage() {
             <div className="flex flex-col gap-8">
               <div className="flex justify-between items-center">
                 <span className="font-medium text-muted-foreground text-sm">
-                  Status
+                  Current stage
                 </span>
                 <span className="font-medium text-base">
-                  {videoData?.status === "generating"
-                    ? "Generating..."
-                    : "Pending..."}
+                  {PIPELINE_STEPS.find((s) => s.key === videoData?.currentStep)
+                    ?.label || "Queued"}
                 </span>
               </div>
               <div className="flex flex-col gap-6">
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full bg-primary text-primary-foreground flex justify-center items-center shrink-0 size-8">
-                    <Check className="size-4" />
-                  </div>
-                  <div className="flex pt-1 flex-col gap-1">
-                    <span className="font-medium">Writing voiceover</span>
-                    <span className="text-muted-foreground text-sm">
-                      Complete
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full bg-accent text-accent-foreground flex justify-center items-center shrink-0 size-8">
-                    <LoaderCircle className="animate-spin size-4" />
-                  </div>
-                  <div className="flex pt-1 flex-col gap-1">
-                    <span className="font-medium">Creating images</span>
-                    <span className="text-accent-foreground text-sm">
-                      In progress...
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full bg-background border-2 border-border shrink-0 size-8" />
-                  <div className="flex pt-1 flex-col gap-1">
-                    <span className="font-medium text-muted-foreground">
-                      Syncing captions
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      Pending
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full bg-background border-2 border-border shrink-0 size-8" />
-                  <div className="flex pt-1 flex-col gap-1">
-                    <span className="font-medium text-muted-foreground">
-                      Rendering video
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      Pending
-                    </span>
-                  </div>
-                </div>
+                {PIPELINE_STEPS.map((step) => {
+                  const state = getStepState(step.key, videoData);
+                  const isComplete = state === "complete";
+                  const isActive = state === "active";
+
+                  return (
+                    <div key={step.key} className="flex items-start gap-4">
+                      <div
+                        className={`rounded-full flex justify-center items-center shrink-0 size-8 ${
+                          isComplete
+                            ? "bg-primary text-primary-foreground"
+                            : isActive
+                              ? "bg-accent text-accent-foreground"
+                              : "bg-background border-2 border-border"
+                        }`}
+                      >
+                        {isComplete && <Check className="size-4" />}
+                        {isActive && (
+                          <LoaderCircle className="animate-spin size-4" />
+                        )}
+                      </div>
+                      <div className="flex pt-1 flex-col gap-1">
+                        <span
+                          className={`font-medium ${
+                            isComplete || isActive ? "" : "text-muted-foreground"
+                          }`}
+                        >
+                          {step.label}
+                        </span>
+                        <span
+                          className={`text-sm ${
+                            isActive
+                              ? "text-accent-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {isComplete
+                            ? "Complete"
+                            : isActive
+                              ? step.activeLabel
+                              : "Pending"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -183,10 +186,10 @@ function PlayVideoPage() {
               </div>
             </div>
             <div className="flex flex-col gap-4 w-full max-w-96">
-              <Progress value={40} className="bg-muted h-1.5" />
+              <Progress value={percent} className="bg-muted h-1.5" />
               <div className="flex justify-between items-center">
                 <span className="font-mono text-muted-foreground text-sm">
-                  Generating...
+                  {percent}% complete
                 </span>
               </div>
             </div>

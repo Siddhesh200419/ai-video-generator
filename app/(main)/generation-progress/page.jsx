@@ -1,5 +1,5 @@
 "use client";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, Loader2, LoaderCircle, TriangleAlert } from "lucide-react";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { triggerConfetti } from "@/lib/confetti";
 import { useCreationContext } from "@/_context/CreationContext";
+import { PIPELINE_STEPS, getStepState } from "@/lib/videoProgress";
 
 function GenerationProgressContent() {
   const router = useRouter();
@@ -14,11 +15,13 @@ function GenerationProgressContent() {
   const videoId = searchParams.get("videoId");
   const { resetFormData } = useCreationContext();
   const [videoData, setVideoData] = useState(null);
-  const [percent, setPercent] = useState(25);
   const [hasError, setHasError] = useState(false);
+  const finishedRef = useRef(false);
 
+  // Mirror the real Inngest pipeline by polling the record it updates.
   useEffect(() => {
     if (!videoId) return;
+    let interval;
 
     const checkStatus = async () => {
       try {
@@ -28,7 +31,9 @@ function GenerationProgressContent() {
         setVideoData(data);
 
         if (data.status === "completed") {
-          setPercent(100);
+          if (finishedRef.current) return;
+          finishedRef.current = true;
+          clearInterval(interval);
           triggerConfetti();
           resetFormData();
           setTimeout(() => {
@@ -36,8 +41,7 @@ function GenerationProgressContent() {
           }, 1200);
         } else if (data.status === "failed") {
           setHasError(true);
-        } else if (data.status === "generating") {
-          setPercent((prev) => Math.min(prev + 10, 85));
+          clearInterval(interval);
         }
       } catch (err) {
         console.error("Polling error:", err);
@@ -45,21 +49,19 @@ function GenerationProgressContent() {
     };
 
     checkStatus();
-    const interval = setInterval(checkStatus, 4000);
+    interval = setInterval(checkStatus, 2500);
     return () => clearInterval(interval);
   }, [videoId, router]);
 
-  // Simulated smooth progression while generating
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPercent((prev) => {
-        if (prev >= 90) return prev;
-        return prev + 2;
-      });
-    }, 1500);
-
-    return () => clearInterval(timer);
-  }, []);
+  // Real progress reported by the pipeline (0-100).
+  const percent = videoData?.progress ?? 0;
+  const stepState = {
+    currentStep: videoData?.currentStep,
+    status: videoData?.status,
+  };
+  const currentStepLabel =
+    PIPELINE_STEPS.find((s) => s.key === videoData?.currentStep)?.label ||
+    "Queued";
 
   const displayTitle =
     videoData?.title && videoData?.title !== "w" && videoData?.title !== "W"
@@ -90,91 +92,62 @@ function GenerationProgressContent() {
               <div className="flex flex-col gap-8">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-muted-foreground text-sm">
-                    Estimated time
+                    Current stage
                   </span>
                   <span className="font-medium text-base">
-                    About 1 minute left
+                    {hasError ? "Failed" : currentStepLabel}
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-6">
-                  {/* Step 1 */}
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-full bg-primary text-primary-foreground flex justify-center items-center shrink-0 size-8">
-                      <Check className="size-4" />
-                    </div>
-                    <div className="flex pt-1 flex-col gap-1">
-                      <span className="font-medium">Writing voiceover</span>
-                      <span className="text-muted-foreground text-sm">
-                        Complete
-                      </span>
-                    </div>
-                  </div>
+                  {PIPELINE_STEPS.map((step) => {
+                    const state = getStepState(step.key, stepState);
+                    const isComplete = state === "complete";
+                    const isActive = state === "active";
 
-                  {/* Step 2 */}
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`rounded-full flex justify-center items-center shrink-0 size-8 ${
-                        percent >= 70
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-accent text-accent-foreground"
-                      }`}
-                    >
-                      {percent >= 70 ? (
-                        <Check className="size-4" />
-                      ) : (
-                        <LoaderCircle className="animate-spin size-4" />
-                      )}
-                    </div>
-                    <div className="flex pt-1 flex-col gap-1">
-                      <span className="font-medium">Creating AI scenes</span>
-                      <span className="text-accent-foreground text-sm">
-                        {percent >= 70 ? "Complete" : "Generating visuals..."}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Step 3 */}
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`rounded-full flex justify-center items-center shrink-0 size-8 ${
-                        percent >= 85
-                          ? "bg-accent text-accent-foreground"
-                          : "bg-background border-2 border-border"
-                      }`}
-                    >
-                      {percent >= 85 && (
-                        <LoaderCircle className="animate-spin size-4" />
-                      )}
-                    </div>
-                    <div className="flex pt-1 flex-col gap-1">
-                      <span
-                        className={`font-medium ${
-                          percent >= 85
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        Syncing captions
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        {percent >= 85 ? "Aligning timestamps..." : "Pending"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Step 4 */}
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-full bg-background border-2 border-border shrink-0 size-8" />
-                    <div className="flex pt-1 flex-col gap-1">
-                      <span className="font-medium text-muted-foreground">
-                        Rendering video
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        Pending
-                      </span>
-                    </div>
-                  </div>
+                    return (
+                      <div key={step.key} className="flex items-start gap-4">
+                        <div
+                          className={`rounded-full flex justify-center items-center shrink-0 size-8 ${
+                            isComplete
+                              ? "bg-primary text-primary-foreground"
+                              : isActive
+                                ? "bg-accent text-accent-foreground"
+                                : "bg-background border-2 border-border"
+                          }`}
+                        >
+                          {isComplete && <Check className="size-4" />}
+                          {isActive && (
+                            <LoaderCircle className="animate-spin size-4" />
+                          )}
+                        </div>
+                        <div className="flex pt-1 flex-col gap-1">
+                          <span
+                            className={`font-medium ${
+                              isComplete || isActive
+                                ? ""
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {step.label}
+                          </span>
+                          <span
+                            className={`text-sm ${
+                              isActive
+                                ? "text-accent-foreground"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {isComplete
+                              ? "Complete"
+                              : isActive
+                                ? step.activeLabel
+                                : "Pending"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -217,7 +190,7 @@ function GenerationProgressContent() {
                 <Progress value={percent} className="bg-muted h-1.5" />
                 <div className="flex justify-between items-center">
                   <span className="font-mono text-muted-foreground text-sm">
-                    {Math.round((percent / 100) * 30)}s / 30s
+                    {percent}% complete
                   </span>
                   <Button
                     variant="outline"
