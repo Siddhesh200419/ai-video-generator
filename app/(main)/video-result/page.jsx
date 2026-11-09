@@ -192,13 +192,13 @@ function VideoResultContent() {
           <Card className="shadow-sm rounded-xl bg-card border p-6 md:p-8">
             <h2 className="font-semibold text-lg !mb-0">Video details</h2>
             <div className="flex mt-5 flex-col divide-y divide-border">
-              <div className="text-sm flex py-3.5 justify-between items-center">
+              {/* <div className="text-sm flex py-3.5 justify-between items-center">
                 <span className="text-muted-foreground">Script</span>
                 <span className="font-medium max-w-[200px] truncate">
                   {videoData?.script?.substring(0, 40) || "Option A"} ·{" "}
                   {videoData?.script?.split(/\s+/).length || 86} words
                 </span>
-              </div>
+              </div> */}
               <div className="text-sm flex py-3.5 justify-between items-center">
                 <span className="text-muted-foreground">Voice</span>
                 <span className="font-medium">
