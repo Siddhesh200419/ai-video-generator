@@ -48,8 +48,15 @@ function Voice({ onHandleInputChange }) {
     setPreviewingVoice(voice.id);
     const newAudio = new Audio(voice.sampleUrl);
     setAudio(newAudio);
-    newAudio.play();
     newAudio.onended = () => setPreviewingVoice(null);
+    newAudio.onerror = () => {
+      setPreviewingVoice(null);
+      toast.error("Couldn't load voice preview");
+    };
+    newAudio.play().catch(() => {
+      setPreviewingVoice(null);
+      toast.error("Couldn't play voice preview");
+    });
   };
 
   return (
