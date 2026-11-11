@@ -349,8 +349,33 @@ function VideoList() {
                           alt={videoTitle}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          // Thumbnails live on S3. Loading them straight from the
+                          // bucket (unoptimized) avoids Next's image-optimizer
+                          // proxy, which can time out on slow/large remote files.
+                          unoptimized
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            // If S3 is unreachable, fall back to the text placeholder.
+                            const el = e.currentTarget;
+                            el.style.display = "none";
+                            const parent = el.parentElement;
+                            const fallback = parent?.querySelector(
+                              "[data-thumb-fallback]",
+                            );
+                            if (fallback) fallback.style.display = "flex";
+                          }}
                           className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
+                        <div
+                          data-thumb-fallback
+                          className="text-center rounded-lg bg-primary/20 text-primary flex-col justify-center items-center gap-4 w-40 h-full hidden"
+                        >
+                          <Film className="size-12" />
+                          <span className="font-semibold text-lg">
+                            {videoTitle.split(" ").slice(0, 2).join(" ")}
+                          </span>
+                        </div>
                       </>
                     ) : (
                       <div className="text-center rounded-lg bg-primary/20 text-primary flex flex-col justify-center items-center gap-4 w-40 h-full">

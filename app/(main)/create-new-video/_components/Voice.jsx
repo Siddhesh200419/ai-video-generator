@@ -27,6 +27,8 @@ function Voice({ onHandleInputChange }) {
   };
 
   // Static sample files only — never call Gemini TTS for previews (10 req/day quota).
+  // Previewing a voice ALSO selects it, so the voice the user hears is guaranteed
+  // to be the voice used during generation.
   const handlePreview = (e, voice) => {
     e.stopPropagation();
 
@@ -38,10 +40,13 @@ function Voice({ onHandleInputChange }) {
 
     if (audio) audio.pause();
 
+    // Select the voice as soon as the user previews it.
+    setSelectedVoice(voice.id);
+    onHandleInputChange("voice", voice.id);
+
     if (!voice.sampleUrl) {
       toast("Voice selected — live previews disabled to save Gemini TTS quota");
-      setSelectedVoice(voice.id);
-      onHandleInputChange("voice", voice.id);
+      setPreviewingVoice(null);
       return;
     }
 
