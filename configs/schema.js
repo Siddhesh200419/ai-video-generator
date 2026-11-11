@@ -62,4 +62,8 @@ export const videoData = pgTable("video_data", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
-}, (table) => [index("video_data_uid_idx").on(table.uid)]);
+}, (table) => [
+  // Composite index serves the dashboard query — filter by uid, order by
+  // createdAt DESC — and still covers uid-only lookups via its leftmost prefix.
+  index("video_data_uid_created_at_idx").on(table.uid, table.createdAt),
+]);
