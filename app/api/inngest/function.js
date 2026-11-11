@@ -25,6 +25,63 @@ The spoken voiceover script of the video is:
 Create 4 to 5 sequential scene image prompts in {style} style.
 Return JSON only.`;
 
+/* -------------------------------------------------------------------------- */
+/*                             RESILIENCE HELPERS                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Runs `mapper` over `items` with at most `limit` tasks in flight at once.
+ * Order is preserved. Stops the pipeline from firing every scene image at the
+ * provider the moment the prompt step resolves, which trips rate limits once a
+ * script produces many scenes.
+ */
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  const maxWorkers = Math.max(1, Math.min(limit, items.length));
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index], index);
+    }
+  };
+
+  await Promise.all(Array.from({ length: maxWorkers }, worker));
+  return results;
+}
+
+/**
+ * Retries an async task with linear backoff. Used around paid AI calls so a
+ * transient 429/5xx does not fail the whole Inngest step — which would re-run
+ * every sibling call inside it and re-spend on all of them.
+ */
+async function withRetry(
+  fn,
+  { attempts = 3, baseDelayMs = 1000, label = "task" } = {}
+) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      console.error(
+        `[${label}] attempt ${attempt}/${attempts} failed:`,
+        error?.message || error
+      );
+      if (attempt < attempts) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, baseDelayMs * attempt)
+        );
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export const helloWorld = inngest.createFunction(
   { id: "hello-world" },
   { event: "test/hello.world" },
@@ -111,24 +168,28 @@ export const GenerateVideoData = inngest.createFunction(
       console.log("[GenerateAudioFile] Requested voice:", requestedVoice);
       console.log("[GenerateAudioFile] Using Gemini voice:", voiceName);
 
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: script }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName,
+      const result = await withRetry(
+        () =>
+          model.generateContent({
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: script }],
+              },
+            ],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName,
+                  },
+                },
               },
             },
-          },
-        },
-      });
+          }),
+        { attempts: 3, baseDelayMs: 1500, label: "gemini-tts" }
+      );
 
       const audioPart =
         result.response.candidates?.[0]?.content?.parts?.find(
@@ -224,10 +285,16 @@ export const GenerateVideoData = inngest.createFunction(
 
       const fluxUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
 
-      // Generate + upload every scene concurrently instead of one-by-one.
-      // Promise.all preserves order, so images[] stays scene-0, scene-1, ...
-      const images = await Promise.all(
-        GenerateImagePrompts.map(async (element, i) => {
+      // Generate + upload scenes with a bounded number of in-flight requests.
+      // Order is preserved, so images[] stays scene-0, scene-1, ...
+      const imageConcurrency = Math.max(
+        1,
+        Number(process.env.IMAGE_CONCURRENCY) || 3
+      );
+      const images = await mapWithConcurrency(
+        GenerateImagePrompts,
+        imageConcurrency,
+        async (element, i) => {
           const rawPrompt = element?.imagePrompt || topic;
           const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
 
@@ -235,17 +302,22 @@ export const GenerateVideoData = inngest.createFunction(
             `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
           );
 
-          // Call Cloudflare Workers AI FLUX
-          const fluxResponse = await axios.post(
-            fluxUrl,
-            { prompt: enhancedPrompt, steps: 4 },
-            {
-              headers: {
-                Authorization: `Bearer ${cfApiToken}`,
-                "Content-Type": "application/json",
-              },
-              timeout: 120_000, // 2-minute timeout per image
-            },
+          // Call Cloudflare Workers AI FLUX. Retried here so a transient blip
+          // does not fail the whole step and force every other scene to redo.
+          const fluxResponse = await withRetry(
+            () =>
+              axios.post(
+                fluxUrl,
+                { prompt: enhancedPrompt, steps: 4 },
+                {
+                  headers: {
+                    Authorization: `Bearer ${cfApiToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  timeout: 120_000, // 2-minute timeout per image
+                }
+              ),
+            { attempts: 3, baseDelayMs: 1500, label: `flux scene ${i + 1}` }
           );
 
           // Validate the response structure
@@ -288,7 +360,7 @@ export const GenerateVideoData = inngest.createFunction(
 
           console.log(`[generateImages] Scene ${i + 1} uploaded to S3: ${imageUrl}`);
           return imageUrl;
-        }),
+        }
       );
 
       return images;
@@ -297,10 +369,17 @@ export const GenerateVideoData = inngest.createFunction(
     // Step 4: Generate Captions (Deepgram, needs the audio URL resolved above)
     await step.run("MarkCaptionsStep", () => markStep("captions", 60));
     const GenerateCaptions = await step.run("generateCaptions", async () => {
-      const deepgram = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
-      const { result, error } = await deepgram.listen.prerecorded.transcribeUrl(
-        { url: GenerateAudioFile },
-        { model: "nova-3" },
+      const deepgram = createClient(
+        process.env.DEEPGRAM_API_KEY ||
+          process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY
+      );
+      const { result, error } = await withRetry(
+        () =>
+          deepgram.listen.prerecorded.transcribeUrl(
+            { url: GenerateAudioFile },
+            { model: "nova-3" }
+          ),
+        { attempts: 3, baseDelayMs: 1500, label: "deepgram" }
       );
       if (error) throw new Error(`Deepgram error: ${error.message}`);
       return result.results?.channels[0]?.alternatives[0]?.words;

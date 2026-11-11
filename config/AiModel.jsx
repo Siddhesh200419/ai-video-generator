@@ -5,7 +5,14 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-const GROQ_TEXT_MODEL = "openai/gpt-oss-120b";
+// Script writing is the creative, quality-critical step, so it keeps the larger
+// model. Storyboard/image-prompt extraction is a structured JSON task that gains
+// more from the smaller, cheaper, higher-throughput model.
+// Both are overridable via env without a code change.
+const GROQ_SCRIPT_MODEL =
+  process.env.GROQ_SCRIPT_MODEL || "openai/gpt-oss-120b";
+const GROQ_PROMPT_MODEL =
+  process.env.GROQ_PROMPT_MODEL || "openai/gpt-oss-20b";
 
 /* -------------------------------------------------------------------------- */
 /*                               SCRIPT PROMPT                                */
@@ -171,11 +178,12 @@ Do not include Markdown fences or commentary.
 async function createJsonCompletion({
   messages,
   temperature = 0.8,
+  model = GROQ_SCRIPT_MODEL,
 }) {
   try {
     const chatCompletion = await groq.chat.completions.create({
       messages,
-      model: GROQ_TEXT_MODEL,
+      model,
       temperature,
       max_completion_tokens: 4096,
       response_format: {
@@ -219,6 +227,7 @@ export const generateScript = {
   sendMessage: async (prompt) => {
     return createJsonCompletion({
       temperature: 0.9,
+      model: GROQ_SCRIPT_MODEL,
       messages: [
         {
           role: "system",
@@ -238,6 +247,7 @@ export const GenerateImageScript = {
   sendMessage: async (prompt) => {
     return createJsonCompletion({
       temperature: 0.6,
+      model: GROQ_PROMPT_MODEL,
       messages: [
         {
           role: "system",
