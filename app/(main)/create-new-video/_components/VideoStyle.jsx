@@ -17,7 +17,7 @@ export const options = [
   { name: "Anime", image: "/anime.jpeg", icon: Sparkles },
   { name: "Cyberpunk", image: "/cyberpunk.jpeg", icon: Cpu },
   { name: "GTA", image: "/gta.jpg", icon: MessageSquare },
-  { name: "Watercolor", image: "/watercolor.jpg", icon: Paintbrush },
+  { name: "Watercolor", image: "/watercolor.jpeg", icon: Paintbrush },
   { name: "cartoon", image: "/cartoon.jpeg", icon: Box },
 ];
 

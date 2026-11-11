@@ -23,7 +23,7 @@ const themes = [
   { name: "Anime", image: "/anime.jpeg", icon: Sparkles, bg: "bg-accent", iconColor: "text-accent-foreground" },
   { name: "Comic", image: "/gta.jpg", icon: MessageSquare, bg: "bg-muted", iconColor: "text-muted-foreground" },
   { name: "Realistic photo", image: "/realistic.jpeg", icon: Camera, bg: "bg-secondary", iconColor: "text-secondary-foreground" },
-  { name: "Watercolor", image: "/watercolor.jpg", icon: Paintbrush, bg: "bg-accent", iconColor: "text-accent-foreground" },
+  { name: "Watercolor", image: "/watercolor.jpeg", icon: Paintbrush, bg: "bg-accent", iconColor: "text-accent-foreground" },
   { name: "Cyberpunk", image: "/cyberpunk.jpeg", icon: Cpu, bg: "bg-primary/20", iconColor: "text-primary" },
   { name: "Minimal 3D", image: "/cartoon.jpeg", icon: Box, bg: "bg-muted", iconColor: "text-muted-foreground" },
 ];

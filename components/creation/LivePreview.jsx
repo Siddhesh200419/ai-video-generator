@@ -10,7 +10,7 @@ const styleImages = {
   Anime: "/anime.jpeg",
   Cyberpunk: "/cyberpunk.jpeg",
   GTA: "/gta.jpg",
-  Watercolor: "/watercolor.jpg",
+  Watercolor: "/watercolor.jpeg",
   cartoon: "/cartoon.jpeg",
   "Realistic photo": "/realistic.jpeg",
   "Dark fantasy": "/cinematic.jpeg",
