@@ -24,6 +24,8 @@ function GenerationProgressContent() {
     let interval;
 
     const checkStatus = async () => {
+      // Don't poll while the tab is hidden — resume on the next visible tick.
+      if (document.hidden) return;
       try {
         const resp = await fetch(`/api/video/${videoId}`);
         if (!resp.ok) return;

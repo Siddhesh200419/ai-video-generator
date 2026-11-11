@@ -48,6 +48,8 @@ function PlayVideoPage() {
   useEffect(() => {
     if (!videoId) return;
     const interval = setInterval(async () => {
+      // Skip polling while the tab is in the background.
+      if (document.hidden) return;
       const data = await fetchVideo();
       if (data?.status === "completed" || data?.status === "failed") {
         clearInterval(interval);
