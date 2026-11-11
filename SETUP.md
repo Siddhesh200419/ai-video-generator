@@ -1,129 +1,208 @@
-# ⚙️ Setup & Installation Guide
+# ReelForge — Setup & Installation Guide
 
-This guide will help you set up the **AI YouTube Short Video Generator** on your local machine.
+This guide covers running ReelForge locally and deploying it to production.
+
+ReelForge is a **Next.js 15 app** that orchestrates several managed services. Only
+the Next.js app runs on your machine — the database, background jobs, video
+renderer, and asset storage are cloud services you configure once.
+
+---
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have the following installed:
+1. **Node.js 18+** (Node 20+ recommended) — [download](https://nodejs.org/)
+2. **npm** (bundled with Node)
+3. **Git** — [download](https://git-scm.com/)
 
-1.  **Node.js**: Version 18 or higher is required. [Download Node.js](https://nodejs.org/)
-2.  **npm** (Node Package Manager): Comes with Node.js.
-3.  **Git**: For cloning the repository. [Download Git](https://git-scm.com/)
+You will also need accounts and credentials for:
 
-You will also need accounts/API keys for the following services:
--   **Google Gemini**: For AI text and script generation. [Get API Key](https://ai.google.dev/)
--   **Firebase**: For User Authentication. [Firebase Console](https://console.firebase.google.com/)
--   **Convex**: For the backend database. [Convex Dashboard](https://dashboard.convex.dev/)
--   **Deepgram**: For audio transcription/captions. [Deepgram Console](https://console.deepgram.com/)
--   **AI Guru Lab (or equivalent)**: For image/audio generation (as seen in the codebase).
+| Service | Used for | Where to get it |
+|---|---|---|
+| **Neon** (PostgreSQL) | Users + video records | [neon.tech](https://neon.tech) |
+| **Groq** | Script + storyboard generation | [console.groq.com](https://console.groq.com) |
+| **Google Gemini** | Text-to-speech voiceover | [ai.google.dev](https://ai.google.dev) |
+| **Cloudflare Workers AI** | FLUX scene image generation | [dash.cloudflare.com](https://dash.cloudflare.com) |
+| **Deepgram** | Word-level caption timestamps | [console.deepgram.com](https://console.deepgram.com) |
+| **Firebase** | Authentication (email + Google) | [console.firebase.google.com](https://console.firebase.google.com) |
+| **AWS** | Remotion Lambda rendering + S3 assets | [aws.amazon.com](https://aws.amazon.com) |
+| **Inngest** | Background pipeline orchestration | [inngest.com](https://www.inngest.com) |
+
+> **AWS is the heaviest prerequisite.** You need an S3 bucket, an IAM role for
+> Remotion Lambda, and permission to deploy Lambda functions in `us-east-1`.
 
 ---
 
-## 🚀 Installation Steps
+## 🚀 Local Setup
 
-### 1. Clone the Repository
-
-Open your terminal and run:
+### 1. Clone and install
 
 ```bash
 git clone <repository-url>
-cd ai-youtube-short-video-generator
-```
-
-### 2. Install Dependencies
-
-Install the project dependencies using npm:
-
-```bash
+cd ai-video-generator
 npm install
 ```
 
-### 3. Environment Configuration
+### 2. Create `.env.local`
 
-Create a `.env.local` file in the root directory of the project.
+Create the file in the project root:
 
 ```bash
-# Windows (PowerShell)
-new-item .env.local
-# Mac/Linux
 touch .env.local
 ```
 
-Open `.env.local` and add the following variables:
+Fill it in using the reference below. Every variable is read by the code — the
+"Required for" column tells you which feature breaks without it.
 
-```env
-# Google Gemini AI (Script & Image Prompts)
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+#### Database
 
-# Firebase (Authentication)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key_here
+| Variable | Required for |
+|---|---|
+| `DATABASE_URL` | All data access (Neon connection string, keep `?sslmode=require`) |
 
-# Convex (Database & Backend)
-# These are usually set automatically by `npx convex dev`, but you can set them explicitly.
-NEXT_PUBLIC_CONVEX_URL=your_convex_url_here
+#### AI — script, storyboard, voice, images, captions
 
-# AI Guru Lab (Image/Audio Generation)
-NEXT_PUBLIC_AIGURULAB_API_KEY=your_aigurulab_api_key_here
+| Variable | Required for |
+|---|---|
+| `GROQ_API_KEY` | Script + scene-prompt generation |
+| `GEMINI_API_KEY` | Voiceover synthesis (server-side TTS) |
+| `NEXT_PUBLIC_GEMINI_API_KEY` | Fallback for the TTS key; **legacy — prefer `GEMINI_API_KEY`** |
+| `CLOUDFLARE_ACCOUNT_ID` | FLUX scene image generation |
+| `CLOUDFLARE_API_TOKEN` | FLUX scene image generation |
+| `DEEPGRAM_API_KEY` | Caption alignment |
+| `NEXT_PUBLIC_DEEPGRAM_API_KEY` | Fallback for the caption key; **legacy — prefer `DEEPGRAM_API_KEY`** |
 
-# Deepgram (Captions & Transcription)
-NEXT_PUBLIC_DEEPGRAM_API_KEY=your_deepgram_api_key_here
-```
+Optional model / throughput tuning:
 
-### 4. Setup Convex
+| Variable | Default | Purpose |
+|---|---|---|
+| `GROQ_SCRIPT_MODEL` | `openai/gpt-oss-120b` | Creative script model |
+| `GROQ_PROMPT_MODEL` | `openai/gpt-oss-20b` | Cheaper model for structured scene prompts |
+| `IMAGE_CONCURRENCY` | `3` | Max FLUX requests in flight |
+| `RENDER_CONCURRENCY` | `8` | Remotion Lambda parallel render threads (bounded by your AWS Lambda concurrency quota) |
 
-Initialize and run the Convex backend dev server:
+> **Security note:** variables prefixed with `NEXT_PUBLIC_` are embedded in the
+> browser bundle. Only `NEXT_PUBLIC_FIREBASE_API_KEY` genuinely needs that prefix
+> (the Firebase client SDK runs in the browser). The Gemini and Deepgram keys are
+> used only server-side, so the non-prefixed names are preferred.
+
+#### Authentication
+
+| Variable | Required for |
+|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Auth client SDK |
+
+Other Firebase values (project id, auth domain, app id) are already hard-coded in
+[config/firebaseConfig.jsx](../config/firebaseConfig.jsx).
+
+#### Storage & rendering
+
+| Variable | Required for |
+|---|---|
+| `REMOTION_AWS_ACCESS_KEY_ID` | S3 uploads + Remotion Lambda |
+| `REMOTION_AWS_SECRET_ACCESS_KEY` | S3 uploads + Remotion Lambda |
+| `AWS_SERVE_URL` | URL of the deployed Remotion bundle (see step 4) |
+| `ASSET_BUCKET` | S3 bucket for audio/images (falls back to the `AWS_SERVE_URL` hostname) |
+| `ASSET_REGION` | S3 region (defaults to `us-east-1`) |
+
+#### Background jobs
+
+| Variable | Required for |
+|---|---|
+| `INNGEST_EVENT_KEY` | Production event sending |
+| `INNGEST_SIGNING_KEY` | Production webhook verification |
+
+Both are only needed in production. Locally, the Inngest dev server handles this.
+
+### 3. Push the database schema
 
 ```bash
-npx convex dev
+npx drizzle-kit push
 ```
 
-This command will:
--   Prompt you to log in to Convex.
--   Create a new project or link to an existing one.
--   Generate the necessary environment variables (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`) in `.env.local`.
--   Push your schema and functions to the cloud.
+This creates the `users` and `video_data` tables (including the
+`(uid, created_at)` index used by the dashboard). To browse the data afterwards:
 
-**Note:** Keep this terminal running! It syncs your backend changes in real-time.
+```bash
+npx drizzle-kit studio
+```
 
----
+### 4. Deploy the Remotion composition to AWS Lambda
 
-## ▶️ Running the Application
+The app renders finished MP4s with **Remotion Lambda**, which is deployed
+separately from the Next.js app. Run these once per AWS account:
 
-### 1. Start the Development Server
+```bash
+npx remotion lambda policies role        # create the IAM role Remotion needs
+npx remotion lambda functions deploy     # deploy the render Lambda function
+npx remotion lambda sites create remotion/index.js --site-name=ai-youtube-video-gen
+```
 
-Open a **new terminal window** (keep `npx convex dev` running in the first one) and run:
+The last command prints a **Serve URL**. Set it as `AWS_SERVE_URL`:
+
+```env
+AWS_SERVE_URL=https://<your-bucket>.s3.us-east-1.amazonaws.com/sites/ai-youtube-video-gen/index.html
+```
+
+Make sure the bucket allows public reads (the app uploads assets with
+`public-read` and falls back gracefully if ACLs are disabled on the bucket).
+
+### 5. Start the dev servers
+
+Terminal 1 — Next.js:
 
 ```bash
 npm run dev
 ```
 
-### 2. Access the App
-
-Open your browser and navigate to:
-[http://localhost:3000](http://localhost:3000)
-
-### 3. (Optional) Run Inngest Dev Server
-
-If you are modifying background jobs or want to test the Inngest functions locally:
+Terminal 2 — Inngest dev agent (required for any video generation to run):
 
 ```bash
 npx inngest-cli@latest dev
 ```
-This will open the Inngest dashboard (usually at `http://localhost:8288`) where you can trigger events and debug functions.
+
+- App: <http://localhost:3000>
+- Inngest dashboard: <http://localhost:8288>
+
+### 6. Verify
+
+Sign in, create a video, then watch the run in the Inngest dashboard. A healthy
+run walks through: `audio` → `scenes` → `captions` → `render` → `done`, and the
+record's `status` flips `pending` → `generating` → `completed`.
 
 ---
 
-## 🐞 Common Issues & Troubleshooting
+## ☁️ Production Deployment
 
--   **Missing API Keys:** If features like script generation or image creation fail, double-check your `.env.local` file to ensure all API keys are correct and active.
--   **Convex Not Running:** Ensure `npx convex dev` is running in a separate terminal. The app needs the backend to be active.
--   **Dependency Errors:** If you encounter issues during `npm install`, try deleting `node_modules` and `package-lock.json` and running `npm install` again.
+The app is built for **Vercel** + managed services.
 
-## 📦 Build for Production
+1. **Push to GitHub** and import the repository in Vercel (Next.js is auto-detected).
+2. **Add every environment variable above**, plus `INNGEST_EVENT_KEY` and
+   `INNGEST_SIGNING_KEY` from your Inngest app.
+3. **Deploy.**
+4. **Register the Inngest app URL** in the Inngest dashboard:
+   `https://<your-domain>/api/inngest`.
+5. **Use a plan with generous function limits.** The render step polls Remotion
+   until the MP4 is finished, which can outlast short serverless timeouts
+   (Vercel Pro + Fluid Compute is a safe default).
 
-To create a production build:
+### Build commands
 
 ```bash
 npm run build
 npm start
 ```
+
+---
+
+## 🐞 Troubleshooting
+
+- **"Missing Cloudflare credentials"** — `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN` are unset.
+  The pipeline refuses to start rather than silently produce broken scenes.
+- **Stuck at `pending`** — the Inngest dev agent isn't running, or (in production)
+  the app URL isn't registered in Inngest.
+- **"AWS Concurrency limit reached"** — lower `RENDER_CONCURRENCY`, or raise the
+  Lambda concurrent-executions quota in AWS Service Quotas before increasing it.
+- **Auth works but no user row appears** — check `DATABASE_URL`; user sync happens
+  in [app/provider.js](../app/provider.js) on every auth state change.
+- **Captions never appear** — confirm the Deepgram key is valid and the audio URL
+  is publicly reachable (Deepgram transcribes by URL, not by upload).
