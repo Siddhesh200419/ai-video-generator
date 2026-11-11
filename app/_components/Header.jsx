@@ -16,19 +16,31 @@ function Header() {
       <nav className="flex items-center gap-4 md:gap-8">
         <a
           href="#features"
-          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden md:block"
+          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden lg:block"
         >
           Features
         </a>
         <a
           href="#how-it-works"
-          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden md:block"
+          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden lg:block"
         >
           How it works
         </a>
         <a
+          href="#styles"
+          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden lg:block"
+        >
+          Styles
+        </a>
+        <a
+          href="#voices"
+          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden lg:block"
+        >
+          Voices
+        </a>
+        <a
           href="#examples"
-          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden md:block"
+          className="font-medium text-muted-foreground text-sm hover:text-foreground hidden lg:block"
         >
           Examples
         </a>
