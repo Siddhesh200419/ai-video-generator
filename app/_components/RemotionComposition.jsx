@@ -15,7 +15,6 @@ function RemotionComposition({ videoData, setDurationInFrame }) {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
   const imageList = videoData?.images;
-  const style = videoData?.caption?.style;
 
   useEffect(() => {
     if (captions && captions.length > 0 && fps && typeof setDurationInFrame === "function") {
@@ -30,6 +29,25 @@ function RemotionComposition({ videoData, setDurationInFrame }) {
 
   const totalDuration = captions?.[captions.length - 1]?.end * fps || 0;
   const framePerImage = totalDuration / imageList.length;
+
+  // Caption styling — driven by the user's selections (position, font, color).
+  // NOTE: Tailwind classes passed via `caption.style` do NOT apply inside the
+  // Remotion render because no CSS is imported in the Remotion bundle. So we
+  // honour the user choices with inline styles, which always render.
+  const captionConfig = videoData?.caption || {};
+  const captionPosition = captionConfig.position || "bottom";
+  const captionColor = captionConfig.color || "#FFA500";
+  const captionFont = captionConfig.font
+    ? `${captionConfig.font}, Inter, system-ui, sans-serif`
+    : "Inter, system-ui, sans-serif";
+
+  // Map the chosen position to vertical placement inside the 9:16 frame.
+  const captionContainerStyle =
+    captionPosition === "top"
+      ? { justifyContent: "flex-start", paddingTop: "12%" }
+      : captionPosition === "middle"
+      ? { justifyContent: "center" }
+      : { justifyContent: "flex-end", paddingBottom: "12%" };
 
   // Increase overlap to ensure no black frames appear
   const overlap = Math.ceil(framePerImage * 0.5); // 50% overlap for smoother transitions
@@ -114,18 +132,26 @@ function RemotionComposition({ videoData, setDurationInFrame }) {
       </AbsoluteFill>
       <AbsoluteFill
         style={{
-          color: "#FFA500", // warm orange-yellow like in your screenshot
-          justifyContent: "center",
+          ...captionContainerStyle,
+          alignItems: "center",
           textAlign: "center",
-          fontSize: "48px", // BIGGER captions for better readability
-          fontWeight: "700", // bold for strong presence
-          textShadow: "2px 2px 8px rgba(0,0,0,0.7)", // soft shadow for contrast on any bg
-          position: "absolute",
-          bottom: "10%", // slightly above bottom
-          width: "100%", // center perfectly
+          width: "100%",
         }}
       >
-        <h2 className={style}>{getCurrentCaption()}</h2>
+        <h2
+          style={{
+            color: captionColor,
+            fontFamily: captionFont,
+            fontSize: "48px",
+            fontWeight: "700",
+            textShadow: "2px 2px 8px rgba(0,0,0,0.7)",
+            margin: 0,
+            maxWidth: "90%",
+            lineHeight: 1.1,
+          }}
+        >
+          {getCurrentCaption()}
+        </h2>
       </AbsoluteFill>
       {videoData?.audioUrl && <Audio src={videoData?.audioUrl} />}
     </div>

@@ -11,20 +11,20 @@ const captionStyles = [
     name: "Bold word-by-word highlight",
     previewText: "ONE TINY",
     style: "text-yellow-400 text-3xl font-extrabold uppercase tracking-wide",
-    badgeClass: "text-primary",
+    badgeClass: "text-yellow-400",
   },
   {
     name: "Karaoke",
     previewText: "ONE TINY",
     style:
-      "text-white text-3xl font-bold italic drop-shadow-lg tracking-wide border-b-2 border-primary",
-    badgeClass: "border-b-2 border-primary",
+      "text-white text-3xl font-bold italic drop-shadow-lg tracking-wide border-b-2 border-yellow-400",
+    badgeClass: "border-b-2 border-yellow-400 text-white",
   },
   {
     name: "Minimal clean",
     previewText: "one tiny chorus",
-    style: "text-white text-2xl font-light tracking-tight",
-    badgeClass: "text-foreground",
+    style: "text-zinc-100 text-2xl font-light tracking-tight",
+    badgeClass: "text-zinc-200 font-light",
   },
   {
     name: "Outline pop",
@@ -38,27 +38,58 @@ const captionStyles = [
     previewText: "ONE TINY",
     style:
       "bg-card text-foreground px-2 py-0.5 rounded text-2xl font-extrabold uppercase",
-    badgeClass: "bg-card text-foreground px-1 py-0.5 rounded",
+    badgeClass: "bg-white text-black px-1 py-0.5 rounded font-extrabold",
   },
   {
     name: "Fire",
     previewText: "FIRE CHORUS",
     style:
-      "text-red-500 text-3xl font-extrabold uppercase tracking-wide bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text text-transparent",
-    badgeClass: "text-red-500",
+      "text-transparent bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text text-3xl font-extrabold uppercase tracking-wide",
+    badgeClass:
+      "text-transparent bg-gradient-to-r from-orange-400 to-red-600 bg-clip-text font-extrabold",
   },
   {
     name: "Neon",
     previewText: "NEON POP",
     style:
-      "text-green-500 text-3xl font-extrabold uppercase tracking-wide border border-green-300 px-1",
-    badgeClass: "text-green-500",
+      "text-green-400 text-3xl font-extrabold uppercase tracking-wide border border-green-300 px-1",
+    badgeClass: "text-green-400 border border-green-300 px-1",
   },
   {
     name: "Retro",
     previewText: "RETRO CHORUS",
-    style: "text-amber-500 text-3xl font-bold tracking-tight font-mono",
-    badgeClass: "text-amber-500",
+    style: "text-amber-400 text-3xl font-bold tracking-tight font-mono",
+    badgeClass: "text-amber-400 font-mono",
+  },
+  {
+    name: "Glitch",
+    previewText: "GLITCH MODE",
+    style:
+      "text-pink-400 text-3xl font-extrabold uppercase tracking-wider drop-shadow-[2px_2px_0_rgba(34,211,238,0.8)]",
+    badgeClass:
+      "text-pink-400 drop-shadow-[1px_1px_0_rgba(34,211,238,0.9)] font-extrabold",
+  },
+  {
+    name: "Gaming",
+    previewText: "GAME ON",
+    style:
+      "text-transparent bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-3xl font-black uppercase tracking-wider",
+    badgeClass:
+      "text-transparent bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text font-black",
+  },
+  {
+    name: "Elegant",
+    previewText: "Elegant",
+    style: "text-zinc-100 text-2xl font-serif italic tracking-wide",
+    badgeClass: "text-zinc-100 italic font-serif",
+  },
+  {
+    name: "Bold outline",
+    previewText: "STAND OUT",
+    style:
+      "text-white text-3xl font-extrabold uppercase tracking-wide drop-shadow-[0_2px_0_rgba(0,0,0,0.9)]",
+    badgeClass:
+      "text-white font-extrabold drop-shadow-[0_1px_0_rgba(0,0,0,0.9)]",
   },
 ];
 
@@ -119,7 +150,7 @@ export default function CaptionsStep() {
                         : "border-border bg-card hover:border-border/80"
                     }`}
                   >
-                    <div className="font-bold rounded-md bg-foreground text-card text-xs flex justify-center items-center aspect-video p-2">
+                    <div className="font-bold rounded-md bg-zinc-900 text-white text-xs flex justify-center items-center aspect-video p-2">
                       <span className={item.badgeClass}>{item.previewText}</span>
                     </div>
                     <span className="font-semibold text-xs block mt-3 line-clamp-1">
@@ -148,7 +179,7 @@ export default function CaptionsStep() {
                   <option value="Bricolage Grotesque">Bricolage Grotesque</option>
                   <option value="Inter">Inter</option>
                   <option value="Outfit">Outfit</option>
-                  <option value="Geist">Geist Mono</option>
+                  <option value="JetBrains Mono">JetBrains Mono</option>
                 </select>
               </div>
 

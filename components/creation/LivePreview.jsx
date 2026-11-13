@@ -91,12 +91,16 @@ export default function LivePreview({ step = 1 }) {
               : "bottom-12"
           }`}
         >
-          <div className="font-bold text-center text-primary-foreground text-xl tracking-tight leading-tight drop-shadow-lg">
+          <div
+            className="font-bold text-center text-primary-foreground text-xl tracking-tight leading-tight drop-shadow-lg"
+            style={{ fontFamily: formData.caption?.font || undefined }}
+          >
             <span
               className={
                 formData.caption?.style ||
                 "text-yellow-400 font-extrabold uppercase"
               }
+              style={{ color: formData.caption?.color || undefined }}
             >
               ONE TINY
             </span>{" "}
