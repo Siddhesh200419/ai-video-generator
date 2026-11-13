@@ -59,7 +59,7 @@ export default function VoiceStep() {
 
     if (!voice.sampleUrl) {
       toast("Voice selected — live previews disabled to conserve TTS quota");
-      updateFormData("voice", voice.name || voice.id);
+      updateFormData("voice", voice.id || voice.name);
       return;
     }
 
@@ -124,7 +124,7 @@ export default function VoiceStep() {
                     <button
                       key={voice.id}
                       type="button"
-                      onClick={() => updateFormData("voice", voice.name || voice.id)}
+                      onClick={() => updateFormData("voice", voice.id || voice.name)}
                       className={`text-left rounded-xl border p-4 transition-all flex flex-col justify-between gap-4 ${
                         isSelected
                           ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"

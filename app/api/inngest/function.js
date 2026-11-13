@@ -161,8 +161,28 @@ export const GenerateVideoData = inngest.createFunction(
       const requestedVoice =
         typeof voice === "string" ? voice.trim() : "";
 
-      const voiceName = supportedVoices.has(requestedVoice)
-        ? requestedVoice
+      // Defensive: older client builds sent the UI display name (e.g.
+      // "Grizzled Detective") instead of the Gemini ID ("Kore"). Map those
+      // display names to their real Gemini IDs so the requested voice is used
+      // instead of silently falling back to "Kore".
+      const displayNameToGeminiId = {
+        "Grizzled Detective": "Kore",
+        "Meditation Guide": "Puck",
+        "Hype Announcer": "Charon",
+        "Regal Monarch": "Fenrir",
+        "Late-Night DJ": "Zephyr",
+        "Cheeky Sidekick": "Aoede",
+        "Epic Narrator": "Orus",
+        "Mystical Seer": "Callirrhoe",
+        "Action Hero": "Iapetus",
+        "Kind Storyteller": "Laomedeia",
+      };
+
+      const resolvedVoice =
+        displayNameToGeminiId[requestedVoice] || requestedVoice;
+
+      const voiceName = supportedVoices.has(resolvedVoice)
+        ? resolvedVoice
         : "Kore";
 
       console.log("[GenerateAudioFile] Requested voice:", requestedVoice);
