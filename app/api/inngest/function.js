@@ -285,125 +285,140 @@ export const GenerateVideoData = inngest.createFunction(
       },
     );
 
-    // Audio and image prompts only depend on the script, so run both branches together.
-    const [GenerateAudioFile, GenerateImagePrompts] = await Promise.all([
-      audioPromise,
-      promptPromise,
-    ]);
-
-    // Step 3: Generate Images via Cloudflare Workers AI FLUX → upload to S3
-    await step.run("MarkScenesStep", () => markStep("scenes", 35));
-    const GenerateImages = await step.run("generateImages", async () => {
-      // Validate Cloudflare credentials (server-side only)
-      const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-      const cfApiToken = process.env.CLOUDFLARE_API_TOKEN;
-      if (!cfAccountId || !cfApiToken) {
-        throw new Error(
-          "Missing Cloudflare credentials: ensure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are set in .env.local",
-        );
-      }
-
-      const fluxUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
-
-      // Generate + upload scenes with a bounded number of in-flight requests.
-      // Order is preserved, so images[] stays scene-0, scene-1, ...
-      const imageConcurrency = Math.max(
-        1,
-        Number(process.env.IMAGE_CONCURRENCY) || 3
-      );
-      const images = await mapWithConcurrency(
-        GenerateImagePrompts,
-        imageConcurrency,
-        async (element, i) => {
-          const rawPrompt = element?.imagePrompt || topic;
-          const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
-
-          console.log(
-            `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
+    // Images depend only on prompts. Do not wait for TTS before starting FLUX.
+    // Keep each operation inside its existing durable step for retry/replay safety.
+    const imagesPromise = promptPromise.then((GenerateImagePrompts) =>
+      step.run("generateImages", async () => {
+        // Validate Cloudflare credentials (server-side only)
+        const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+        const cfApiToken = process.env.CLOUDFLARE_API_TOKEN;
+        if (!cfAccountId || !cfApiToken) {
+          throw new Error(
+            "Missing Cloudflare credentials: ensure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are set in .env.local",
           );
-
-          // Call Cloudflare Workers AI FLUX. Retried here so a transient blip
-          // does not fail the whole step and force every other scene to redo.
-          const fluxResponse = await withRetry(
-            () =>
-              axios.post(
-                fluxUrl,
-                { prompt: enhancedPrompt, steps: 4 },
-                {
-                  headers: {
-                    Authorization: `Bearer ${cfApiToken}`,
-                    "Content-Type": "application/json",
-                  },
-                  timeout: 120_000, // 2-minute timeout per image
-                }
-              ),
-            { attempts: 3, baseDelayMs: 1500, label: `flux scene ${i + 1}` }
-          );
-
-          // Validate the response structure
-          const base64Image = fluxResponse.data?.result?.image;
-          if (!base64Image || typeof base64Image !== "string") {
-            throw new Error(
-              `FLUX did not return image data for scene ${i + 1}. ` +
-              `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
-            );
-          }
-
-          // Decode Base64 JPEG into a buffer
-          const imageBuffer = Buffer.from(base64Image, "base64");
-          if (imageBuffer.length < 100) {
-            throw new Error(
-              `FLUX returned an unexpectedly small image for scene ${i + 1} (${imageBuffer.length} bytes)`,
-            );
-          }
-
-          // Upload to S3 using the existing storage helper
-          const s3Key = `images/${recordId}/scene-${i}.jpg`;
-          let imageUrl;
-          let lastErr;
-          for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-              imageUrl = await uploadFile(imageBuffer, s3Key, "image/jpeg");
-              break;
-            } catch (e) {
-              lastErr = e;
-              console.error(
-                `S3 image upload attempt ${attempt + 1} for scene ${i + 1} failed:`,
-                e?.message || e,
-              );
-              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-            }
-          }
-          if (!imageUrl) {
-            throw lastErr;
-          }
-
-          console.log(`[generateImages] Scene ${i + 1} uploaded to S3: ${imageUrl}`);
-          return imageUrl;
         }
-      );
 
-      return images;
-    });
+        const fluxUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
 
-    // Step 4: Generate Captions (Deepgram, needs the audio URL resolved above)
-    await step.run("MarkCaptionsStep", () => markStep("captions", 60));
-    const GenerateCaptions = await step.run("generateCaptions", async () => {
-      const deepgram = createClient(
-        process.env.DEEPGRAM_API_KEY ||
-          process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY
-      );
-      const { result, error } = await withRetry(
-        () =>
-          deepgram.listen.prerecorded.transcribeUrl(
-            { url: GenerateAudioFile },
-            { model: "nova-3" }
-          ),
-        { attempts: 3, baseDelayMs: 1500, label: "deepgram" }
-      );
-      if (error) throw new Error(`Deepgram error: ${error.message}`);
-      return result.results?.channels[0]?.alternatives[0]?.words;
-    });
+        // Generate + upload scenes with a bounded number of in-flight requests.
+        // Order is preserved, so images[] stays scene-0, scene-1, ...
+        const imageConcurrency = Math.max(
+          1,
+          Number(process.env.IMAGE_CONCURRENCY) || 3
+        );
+        const images = await mapWithConcurrency(
+          GenerateImagePrompts,
+          imageConcurrency,
+          async (element, i) => {
+            const rawPrompt = element?.imagePrompt || topic;
+            const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
+
+            console.log(
+              `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
+            );
+
+            // Call Cloudflare Workers AI FLUX. Retried here so a transient blip
+            // does not fail the whole step and force every other scene to redo.
+            const fluxResponse = await withRetry(
+              () =>
+                axios.post(
+                  fluxUrl,
+                  { prompt: enhancedPrompt, steps: 4 },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${cfApiToken}`,
+                      "Content-Type": "application/json",
+                    },
+                    timeout: 120_000, // 2-minute timeout per image
+                  }
+                ),
+              { attempts: 3, baseDelayMs: 1500, label: `flux scene ${i + 1}` }
+            );
+
+            // Validate the response structure
+            const base64Image = fluxResponse.data?.result?.image;
+            if (!base64Image || typeof base64Image !== "string") {
+              throw new Error(
+                `FLUX did not return image data for scene ${i + 1}. ` +
+                `HTTP ${fluxResponse.status}, success=${fluxResponse.data?.success}`,
+              );
+            }
+
+            // Decode Base64 JPEG into a buffer
+            const imageBuffer = Buffer.from(base64Image, "base64");
+            if (imageBuffer.length < 100) {
+              throw new Error(
+                `FLUX returned an unexpectedly small image for scene ${i + 1} (${imageBuffer.length} bytes)`,
+              );
+            }
+
+            // Upload to S3 using the existing storage helper
+            const s3Key = `images/${recordId}/scene-${i}.jpg`;
+            let imageUrl;
+            let lastErr;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                imageUrl = await uploadFile(imageBuffer, s3Key, "image/jpeg");
+                break;
+              } catch (e) {
+                lastErr = e;
+                console.error(
+                  `S3 image upload attempt ${attempt + 1} for scene ${i + 1} failed:`,
+                  e?.message || e,
+                );
+                await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+              }
+            }
+            if (!imageUrl) {
+              throw lastErr;
+            }
+
+            console.log(`[generateImages] Scene ${i + 1} uploaded to S3: ${imageUrl}`);
+            return imageUrl;
+          }
+        );
+
+        return images;
+      })
+    );
+
+    // Captions depend only on the uploaded audio, not on any scene images.
+    const captionsPromise = audioPromise.then((GenerateAudioFile) =>
+      step.run("generateCaptions", async () => {
+        const deepgram = createClient(
+          process.env.DEEPGRAM_API_KEY ||
+            process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY
+        );
+        const { result, error } = await withRetry(
+          () =>
+            deepgram.listen.prerecorded.transcribeUrl(
+              { url: GenerateAudioFile },
+              { model: "nova-3" }
+            ),
+          { attempts: 3, baseDelayMs: 1500, label: "deepgram" }
+        );
+        if (error) throw new Error(`Deepgram error: ${error.message}`);
+        return result.results?.channels[0]?.alternatives[0]?.words;
+      })
+    );
+
+    // Keep progress milestones ordered even when branches finish out of order.
+    // This observer never blocks asset work, and all promises are joined below
+    // so a failure in either branch is handled before anything can render.
+    const progressPromise = (async () => {
+      await Promise.all([audioPromise, promptPromise]);
+      await step.run("MarkScenesStep", () => markStep("scenes", 35));
+      await imagesPromise;
+      await step.run("MarkCaptionsStep", () => markStep("captions", 60));
+    })();
+
+    const [GenerateAudioFile, GenerateImages, GenerateCaptions] =
+      await Promise.all([
+        audioPromise,
+        imagesPromise,
+        captionsPromise,
+        progressPromise,
+      ]);
 
     // Step 5: Save audio + images to Neon (status = generating)
     await step.run("UpdateDB", async () => {
@@ -447,8 +462,8 @@ export const GenerateVideoData = inngest.createFunction(
         // Number of parallel render Lambda functions (Remotion splits the video
         // into this many chunks). This is capped by your AWS account's Lambda
         // concurrency quota — setting it too high triggers
-        // "AWS Concurrency limit reached". Once you raise the quota in AWS Service
-        // Quotas (Lambda → Concurrent executions), bump RENDER_CONCURRENCY.
+        // "AWS Concurrency limit reached". Keep the existing account limit;
+        // asset preparation overlaps without increasing render concurrency.
         // NOTE: `concurrency` and `framesPerLambda` are mutually exclusive in Remotion.
         concurrency: Number(process.env.RENDER_CONCURRENCY) || 8,
         privacy: "public",

@@ -161,14 +161,22 @@ The pipeline lives in
 |---|---|---|
 | 1 | **Audio** — Gemini TTS synthesizes the script, converted to WAV and uploaded to S3 | 10% |
 | 2 | **Prompts** — Groq splits the script into 4–5 scene image prompts *(runs in parallel with step 1)* | — |
-| 3 | **Scenes** — FLUX generates each image and uploads it to S3 | 35% |
-| 4 | **Captions** — Deepgram transcribes the audio for word-level timestamps | 60% |
+| 3 | **Scenes** — FLUX generates each image and uploads it to S3 as soon as prompts are ready, without waiting for audio | 35% |
+| 4 | **Captions** — Deepgram transcribes the audio as soon as its upload finishes, without waiting for scenes | 60% |
 | 5 | **Persist** — audio, images, and captions saved; status → `generating` | — |
 | 6 | **Render** — Remotion Lambda renders the vertical MP4 | 65% |
 | 7 | **Finalize** — Remotion progress is polled and mirrored to the DB; `download_url` saved, status → `completed` | 65→100% |
 
-The UI polls `GET /api/video/[id]` and renders whatever step the pipeline is
-actually on.
+Asset preparation runs in two overlapping branches: `audio → captions` and
+`prompts → images`. Rendering starts only after both branches finish. Image
+request limits, Lambda concurrency, providers, and render quality are unchanged.
+
+The UI polls `GET /api/video/[id]`. Progress milestones stay ordered even when
+asset branches finish out of order: 35% means audio and prompts are ready; 60%
+means images are also ready; 65% means all assets are ready for rendering.
+
+Run `npm run test:pipeline` to verify branch scheduling, failure handling, and
+Inngest replay with mocked services (no cloud calls or video rendering).
 
 ---
 
