@@ -2,6 +2,7 @@ import { db } from "@/configs/db";
 import { videoData } from "@/configs/schema";
 import { inngest } from "@/inngest/client";
 import { NextResponse } from "next/server";
+import { videoJobEvent } from "@/lib/videoJobs";
 
 export async function POST(req) {
   try {
@@ -36,15 +37,17 @@ export async function POST(req) {
       })
       .returning();
 
-    // 3. Dispatch Inngest background job with the new record ID
-    await inngest.send({
-      name: "generate-video-data",
-      data: {
-        ...body,
-        title,
-        recordId: newVideo.id,
-      },
-    });
+    // The committed pending row is also the outbox. If sending fails (or this
+    // request dies here), the recovery function sends the same event later.
+    try {
+      await inngest.send(videoJobEvent(newVideo));
+    } catch (error) {
+      console.error("[POST /api/generate-video-data] Dispatch deferred:", error);
+      return NextResponse.json(
+        { recordId: newVideo.id, video: newVideo },
+        { status: 202 },
+      );
+    }
 
     return NextResponse.json({ recordId: newVideo.id, video: newVideo });
   } catch (error) {
