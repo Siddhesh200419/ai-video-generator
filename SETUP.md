@@ -169,6 +169,20 @@ Sign in, create a video, then watch the run in the Inngest dashboard. A healthy
 run walks through: `audio` → `scenes` → `captions` → `render` → `done`, and the
 record's `status` flips `pending` → `generating` → `completed`.
 
+Exhausted pipeline retries set `status = failed` and save the error while keeping
+the last progress milestone. Render polling uses durable five-second waits and
+a persisted 15-minute deadline, including render submission retries.
+
+The `recover-video-jobs` function runs every minute. Pending records are a durable
+outbox: after one minute it resends the same event ID, so a failed or ambiguous
+dispatch can recover without creating a second video. The create endpoint returns
+HTTP 202 with the existing `recordId` when dispatch is deferred. Pending records
+expire after 30 minutes; generating records expire two hours after creation as a
+safety net for interrupted runs and failed failure callbacks. Terminal records
+are protected from late writes. Recovery also covers existing stuck records and
+requires no schema migration. These checks resume when Inngest and the database
+are available again after an outage.
+
 ---
 
 ## ☁️ Production Deployment
@@ -181,9 +195,9 @@ The app is built for **Vercel** + managed services.
 3. **Deploy.**
 4. **Register the Inngest app URL** in the Inngest dashboard:
    `https://<your-domain>/api/inngest`.
-5. **Use a plan with generous function limits.** The render step polls Remotion
-   until the MP4 is finished, which can outlast short serverless timeouts
-   (Vercel Pro + Fluid Compute is a safe default).
+5. **Verify function registration.** Confirm both `generate-video-data` and
+   `recover-video-jobs` are registered after deployment. Render waits release the
+   serverless request; individual AI calls still need adequate request timeouts.
 
 ### Build commands
 
