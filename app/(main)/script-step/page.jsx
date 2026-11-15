@@ -77,6 +77,7 @@ export default function ScriptStep() {
     try {
       const result = await axios.post("/api/generate-script", {
         topic: finalTopic,
+        title: formData.title?.trim() || finalTopic,
         theme: finalTheme,
       });
 
