@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { geminiAudioToWav } from "@/lib/pcmToWav";
+import { buildSpeechPart, resolveVoice } from "@/lib/voiceDirection";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+);
 
 /**
  * Full-script TTS for the video pipeline / occasional checks.
@@ -12,7 +15,7 @@ export async function POST(req) {
   try {
     const { script, voice, model = "gemini-3.8-flash-tts" } = await req.json();
 
-    if (!script) {
+    if (typeof script !== "string" || !script.trim()) {
       return NextResponse.json({ error: "Script is required" }, { status: 400 });
     }
 
@@ -22,12 +25,12 @@ export async function POST(req) {
     );
 
     const result = await generativeModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: script }] }],
+      contents: [{ role: "user", parts: [buildSpeechPart(script, voice)] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice || "Kore" },
+            prebuiltVoiceConfig: { voiceName: resolveVoice(voice) },
           },
         },
       },
