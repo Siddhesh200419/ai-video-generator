@@ -3,27 +3,27 @@ import { videoData } from "@/configs/schema";
 import { GenerateImageScript } from "@/config/AiModel";
 import { inngest } from "@/inngest/client";
 import { createClient } from "@deepgram/sdk";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, lt } from "drizzle-orm";
+import { NonRetriableError } from "inngest";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { uploadFile } from "@/lib/storage";
 import { geminiAudioToWav } from "@/lib/pcmToWav";
+import { buildSpeechPart, resolveVoice } from "@/lib/voiceDirection";
+import {
+  activeVideoJob,
+  failVideoJob,
+  expireVideoJobs,
+  videoJobEvent,
+  RENDER_TIMEOUT_MS,
+  DISPATCH_TIMEOUT_MS,
+  JOB_TIMEOUT_MS,
+} from "@/lib/videoJobs";
 import {
   getFunctions,
   renderMediaOnLambda,
   getRenderProgress,
 } from "@remotion/lambda/client";
-
-const ImagePromptScript = `Video Visual Style: {style}
-Video Topic: {topic}
-
-The spoken voiceover script of the video is:
-"""
-{script}
-"""
-
-Create 4 to 5 sequential scene image prompts in {style} style.
-Return JSON only.`;
 
 /* -------------------------------------------------------------------------- */
 /*                             RESILIENCE HELPERS                             */
@@ -95,19 +95,30 @@ export const GenerateVideoData = inngest.createFunction(
   {
     id: "generate-video-data",
     retries: 2,
+    idempotency: "event.data.recordId",
+    onFailure: async ({ event, error, step }) => {
+      const recordId = event.data.event.data.recordId;
+      await step.run("MarkVideoFailed", () => failVideoJob(recordId, error));
+    },
   },
   { event: "generate-video-data" },
   async ({ event, step }) => {
-    const { script, topic, title, caption, videoStyle, voice, recordId } =
+    const { script, topic, caption, videoStyle, voice, recordId } =
       event?.data;
 
     // Live progress helper — the UI polls /api/video/[id] and mirrors whatever
     // step the pipeline is actually on instead of simulating it.
-    const markStep = (stepName, progress) =>
-      db
+    const markStep = async (stepName, progress) => {
+      const updated = await db
         .update(videoData)
         .set({ currentStep: stepName, progress, status: "generating" })
-        .where(eq(videoData.id, recordId));
+        .where(activeVideoJob(recordId))
+        .returning({ id: videoData.id });
+      if (updated.length === 0) {
+        throw new NonRetriableError("Video job is already terminal or was deleted");
+      }
+      return updated[0].id;
+    };
 
     // Step 1: Generate Audio (Gemini) → upload WAV to existing S3 bucket
     // Upload retries stay inside this step so a failed upload does NOT re-call Gemini.
@@ -124,69 +135,7 @@ export const GenerateVideoData = inngest.createFunction(
         { apiVersion: "v1beta" }
       );
 
-      // Gemini prebuilt voice IDs, not descriptive UI labels.
-      const supportedVoices = new Set([
-        "Zephyr",
-        "Puck",
-        "Charon",
-        "Kore",
-        "Fenrir",
-        "Leda",
-        "Orus",
-        "Aoede",
-        "Callirrhoe",
-        "Autonoe",
-        "Enceladus",
-        "Iapetus",
-        "Umbriel",
-        "Algieba",
-        "Despina",
-        "Erinome",
-        "Algenib",
-        "Rasalgethi",
-        "Laomedeia",
-        "Achernar",
-        "Alnilam",
-        "Schedar",
-        "Gacrux",
-        "Pulcherrima",
-        "Achird",
-        "Zubenelgenubi",
-        "Vindemiatrix",
-        "Sadachbia",
-        "Sadaltager",
-        "Sulafat",
-      ]);
-
-      const requestedVoice =
-        typeof voice === "string" ? voice.trim() : "";
-
-      // Defensive: older client builds sent the UI display name (e.g.
-      // "Grizzled Detective") instead of the Gemini ID ("Kore"). Map those
-      // display names to their real Gemini IDs so the requested voice is used
-      // instead of silently falling back to "Kore".
-      const displayNameToGeminiId = {
-        "Grizzled Detective": "Kore",
-        "Meditation Guide": "Puck",
-        "Hype Announcer": "Charon",
-        "Regal Monarch": "Fenrir",
-        "Late-Night DJ": "Zephyr",
-        "Cheeky Sidekick": "Aoede",
-        "Epic Narrator": "Orus",
-        "Mystical Seer": "Callirrhoe",
-        "Action Hero": "Iapetus",
-        "Kind Storyteller": "Laomedeia",
-      };
-
-      const resolvedVoice =
-        displayNameToGeminiId[requestedVoice] || requestedVoice;
-
-      const voiceName = supportedVoices.has(resolvedVoice)
-        ? resolvedVoice
-        : "Kore";
-
-      console.log("[GenerateAudioFile] Requested voice:", requestedVoice);
-      console.log("[GenerateAudioFile] Using Gemini voice:", voiceName);
+      const voiceName = resolveVoice(voice);
 
       const result = await withRetry(
         () =>
@@ -194,7 +143,7 @@ export const GenerateVideoData = inngest.createFunction(
             contents: [
               {
                 role: "user",
-                parts: [{ text: script }],
+                parts: [buildSpeechPart(script, voiceName)],
               },
             ],
             generationConfig: {
@@ -259,10 +208,13 @@ export const GenerateVideoData = inngest.createFunction(
     const promptPromise = step.run(
       "generateImagePrompt",
       async () => {
-        const FINAL_PROMPT = ImagePromptScript
-          .replace(/{style}/g, videoStyle || "Cinematic")
-          .replace(/{topic}/g, topic || "Topic")
-          .replace(/{script}/g, script);
+        const FINAL_PROMPT = `Create five sequential scene prompts, or four for an unusually short script.
+Use the supplied visual style consistently. Return JSON only.
+Video context: ${JSON.stringify({
+  videoStyle: videoStyle || "Cinematic",
+  topic: topic || "",
+  script,
+})}`;
 
         console.log("[generateImagePrompt] Requesting prompts for script...");
         const result = await GenerateImageScript.sendMessage(FINAL_PROMPT);
@@ -311,7 +263,6 @@ export const GenerateVideoData = inngest.createFunction(
           imageConcurrency,
           async (element, i) => {
             const rawPrompt = element?.imagePrompt || topic;
-            const enhancedPrompt = `${rawPrompt}, in ${videoStyle} style, 8k resolution, ultra detailed, cinematic atmosphere`;
 
             console.log(
               `[generateImages] Generating image ${i + 1}/${GenerateImagePrompts.length} via FLUX...`,
@@ -323,7 +274,7 @@ export const GenerateVideoData = inngest.createFunction(
               () =>
                 axios.post(
                   fluxUrl,
-                  { prompt: enhancedPrompt, steps: 4 },
+                  { prompt: rawPrompt, steps: 4 },
                   {
                     headers: {
                       Authorization: `Bearer ${cfApiToken}`,
@@ -430,12 +381,20 @@ export const GenerateVideoData = inngest.createFunction(
           images: GenerateImages,
           status: "generating",
         })
-        .where(eq(videoData.id, recordId));
+        .where(activeVideoJob(recordId));
     });
 
     // Step 6: Render video via Remotion Lambda
     await step.run("MarkRenderStep", () => markStep("render", 65));
+    // Persist once, before submitting, so retries/replays cannot reset the clock.
+    const renderDeadline = await step.run(
+      "RenderDeadline",
+      () => Date.now() + RENDER_TIMEOUT_MS,
+    );
     const RenderVideo = await step.run("RenderVideo", async () => {
+      if (Date.now() >= renderDeadline) {
+        throw new NonRetriableError("Render deadline exceeded (15 minutes)");
+      }
       const services = await getFunctions({
         region: "us-east-1",
         compatibleOnly: true,
@@ -472,16 +431,36 @@ export const GenerateVideoData = inngest.createFunction(
       return { renderId, bucketName, functionName };
     });
 
-    // Step 7: Poll render progress + save download URL (status = completed)
-    await step.run("UpdateDownloadUrl", async () => {
-      let progress;
-      do {
-        progress = await getRenderProgress({
+    // Each poll and wait is durable; no serverless request stays open waiting
+    // for the render. Check wall time inside the step so replays stay deterministic.
+    let downloadUrl;
+    for (let poll = 0; ; poll++) {
+      const result = await step.run(`PollRender-${poll}`, async () => {
+        if (Date.now() >= renderDeadline) {
+          throw new NonRetriableError("Render deadline exceeded (15 minutes)");
+        }
+        const progress = await getRenderProgress({
           region: "us-east-1",
           renderId: RenderVideo.renderId,
           bucketName: RenderVideo.bucketName,
           functionName: RenderVideo.functionName,
         });
+
+        if (Date.now() >= renderDeadline) {
+          throw new NonRetriableError("Render deadline exceeded (15 minutes)");
+        }
+        if (progress.fatalErrorEncountered) {
+          throw new NonRetriableError(`Render failed: ${JSON.stringify(progress.errors ?? [])}`);
+        }
+        if (progress.done) {
+          const outputUrl = progress.outputFile || (progress.outKey
+            ? `https://${RenderVideo.bucketName}.s3.us-east-1.amazonaws.com/${progress.outKey}`
+            : null);
+          if (!outputUrl) {
+            throw new NonRetriableError("Render completed without an output file");
+          }
+          return { done: true, downloadUrl: outputUrl };
+        }
 
         // Push Remotion's real render percentage to the DB (65% → 99%) so the
         // progress page mirrors the actual render, not a simulated bar.
@@ -491,42 +470,62 @@ export const GenerateVideoData = inngest.createFunction(
             : typeof progress.progress === "number"
               ? progress.progress
               : 0;
-        await db
-          .update(videoData)
-          .set({
-            currentStep: "render",
-            progress: Math.min(99, 65 + Math.round(renderPct * 34)),
-          })
-          .where(eq(videoData.id, recordId));
-
-        if (!progress.done) {
-          await new Promise((r) => setTimeout(r, 2500));
-        }
-      } while (!progress.done && !progress.fatalErrorEncountered);
-
-      if (progress.fatalErrorEncountered) {
-        await db
-          .update(videoData)
-          .set({
-            status: "failed",
-            errorMessage: JSON.stringify(progress.errors ?? []),
-          })
-          .where(eq(videoData.id, recordId));
-        throw new Error(`Render failed: ${JSON.stringify(progress.errors ?? [])}`);
+        await markStep("render", Math.min(99, 65 + Math.round(renderPct * 34)));
+        return { done: false };
+      });
+      if (result.done) {
+        downloadUrl = result.downloadUrl;
+        break;
       }
+      await step.sleep(`WaitForRender-${poll}`, "5s");
+    }
 
-      const downloadUrl =
-        progress.outputFile ??
-        `https://${RenderVideo.bucketName}.s3.us-east-1.amazonaws.com/${progress.outKey}`;
-
+    await step.run("UpdateDownloadUrl", async () => {
       await db
         .update(videoData)
-        .set({ downloadUrl, status: "completed", currentStep: "done", progress: 100 })
-        .where(eq(videoData.id, recordId));
+        .set({ downloadUrl, status: "completed", currentStep: "done", progress: 100, errorMessage: null })
+        .where(activeVideoJob(recordId));
 
       return downloadUrl;
     });
 
     return "Executed Successfully!";
+  },
+);
+
+// Also repairs pre-existing orphaned rows. Expiration runs before dispatch so
+// outages cannot leave pending/generating videos nonterminal indefinitely.
+export const RecoverVideoJobs = inngest.createFunction(
+  { id: "recover-video-jobs", retries: 2, concurrency: 1 },
+  { cron: "* * * * *" },
+  async ({ step }) => {
+    await step.run("ExpirePendingVideos", () => expireVideoJobs(
+      "pending", DISPATCH_TIMEOUT_MS, "Video dispatch deadline exceeded (30 minutes)",
+    ));
+    // Safety net for interrupted runs or unavailable failure handlers. Measured
+    // from creation so no new schema is needed to repair existing stuck jobs.
+    await step.run("ExpireStalledVideos", () => expireVideoJobs(
+      "generating", JOB_TIMEOUT_MS, "Video generation deadline exceeded (2 hours)",
+    ));
+    const pending = await step.run("FindPendingVideos", () => db
+      .select()
+      .from(videoData)
+      .where(and(
+        eq(videoData.status, "pending"),
+        lt(videoData.createdAt, new Date(Date.now() - 60_000)),
+      ))
+      .orderBy(asc(videoData.createdAt))
+      .limit(100));
+    if (pending.length > 0) {
+      try {
+        await step.sendEvent("RedispatchPendingVideos", pending.map(videoJobEvent));
+      } catch (error) {
+        // Leave the outbox intact for the next cron tick. Keep the recovery
+        // function healthy during event-service outages so expiration continues.
+        console.error("[RecoverVideoJobs] Dispatch deferred:", error);
+        return { dispatched: 0, deferred: pending.length };
+      }
+    }
+    return { dispatched: pending.length };
   },
 );
