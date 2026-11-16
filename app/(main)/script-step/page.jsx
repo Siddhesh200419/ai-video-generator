@@ -57,6 +57,14 @@ export default function ScriptStep() {
     formData.title?.trim() && formData.topic?.trim() && formData.theme?.trim()
   );
 
+  const selectedLanguage = formData.language || "english";
+
+  const LANGUAGES = [
+    { id: "english",  label: "English",  flag: "🇬🇧", hint: "Scripts in English" },
+    { id: "hindi",    label: "Hindi",    flag: "🇮🇳", hint: "Hinglish (Roman script, Hindi voice)" },
+    { id: "marathi",  label: "Marathi",  flag: "🇮🇳", hint: "Marathlish (Roman script, Marathi voice)" },
+  ];
+
   const handleGenerateScripts = async () => {
     if (loading || !canGenerate) return;
     const finalTopic = formData.topic?.trim() || formData.title?.trim();
@@ -79,6 +87,7 @@ export default function ScriptStep() {
         topic: finalTopic,
         title: formData.title?.trim() || finalTopic,
         theme: finalTheme,
+        language: formData.language || "english",
       });
 
       const generated = result.data?.scripts;
@@ -190,6 +199,45 @@ export default function ScriptStep() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Language Selector */}
+            <div className="flex flex-col gap-3">
+              <span className="font-medium text-sm">Script language</span>
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.id}
+                    type="button"
+                    onClick={() => {
+                      updateFormData("language", lang.id);
+                      // Clear existing scripts when language changes so the user
+                      // always gets fresh scripts in the chosen language.
+                      updateFormData("scripts", []);
+                      updateFormData("script", "");
+                      updateFormData("selectedScriptIndex", null);
+                    }}
+                    title={lang.hint}
+                    className={`font-medium rounded-md text-xs px-3.5 py-2 transition-all border flex items-center gap-1.5 ${
+                      selectedLanguage === lang.id
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card text-foreground border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span>{lang.flag}</span>
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+              {selectedLanguage !== "english" && (
+                <p className="text-muted-foreground text-xs">
+                  Write your topic in English — the AI will generate a{" "}
+                  <strong>{selectedLanguage === "hindi" ? "Hinglish" : "Marathlish"}</strong> voiceover script,
+                  and the voice will speak in{" "}
+                  <strong>{selectedLanguage === "hindi" ? "Hindi" : "Marathi"}</strong>.
+                  Captions will appear in Devanagari (देवनागरी).
+                </p>
+              )}
             </div>
 
             {/* Generate Script Action */}

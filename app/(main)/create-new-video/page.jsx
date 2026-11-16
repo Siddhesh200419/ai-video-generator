@@ -76,6 +76,7 @@ function CreateNewVideo() {
         videoStyle: formData.videoStyle,
         caption: formData.caption,
         voice: formData.voice,
+        language: formData.language || "english",
         uid: user?.id,
         createdBy: user?.email,
       }),

@@ -19,6 +19,7 @@ const initialData = {
   videoStyle: "",
   mood: "",
   filmGrain: false,
+  language: "english",  // "english" | "hindi" | "marathi"
 };
 
 export function CreationProvider({ children }) {
