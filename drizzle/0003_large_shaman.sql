@@ -1,0 +1,1 @@
+ALTER TABLE "video_data" ADD COLUMN "language" varchar(50) DEFAULT 'english' NOT NULL;

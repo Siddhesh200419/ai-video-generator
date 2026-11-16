@@ -1,4 +1,4 @@
-﻿import {
+import {
   pgTable,
   uuid,
   varchar,
@@ -33,6 +33,8 @@ export const videoData = pgTable("video_data", {
   videoStyle: varchar("video_style", { length: 100 }).notNull(),
   voice: varchar("voice", { length: 100 }).notNull(),
   caption: jsonb("caption"),
+  // "english" | "hindi" | "marathi"  — defaults to "english" for all existing rows
+  language: varchar("language", { length: 50 }).notNull().default("english"),
 
   // Generated assets (filled in by Inngest pipeline)
   images: jsonb("images"),            // string[] of image URLs
