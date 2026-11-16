@@ -9,7 +9,7 @@ import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { uploadFile } from "@/lib/storage";
 import { geminiAudioToWav } from "@/lib/pcmToWav";
-import { buildSpeechPart, resolveVoice } from "@/lib/voiceDirection";
+import { buildSpeechPart, resolveVoice, resolveLanguageCode } from "@/lib/voiceDirection";
 import {
   activeVideoJob,
   failVideoJob,
@@ -103,7 +103,7 @@ export const GenerateVideoData = inngest.createFunction(
   },
   { event: "generate-video-data" },
   async ({ event, step }) => {
-    const { script, topic, caption, videoStyle, voice, recordId } =
+    const { script, topic, caption, videoStyle, voice, language, recordId } =
       event?.data;
 
     // Live progress helper — the UI polls /api/video/[id] and mirrors whatever
@@ -136,6 +136,7 @@ export const GenerateVideoData = inngest.createFunction(
       );
 
       const voiceName = resolveVoice(voice);
+      const languageCode = resolveLanguageCode(language);
 
       const result = await withRetry(
         () =>
@@ -143,12 +144,13 @@ export const GenerateVideoData = inngest.createFunction(
             contents: [
               {
                 role: "user",
-                parts: [buildSpeechPart(script, voiceName)],
+                parts: [buildSpeechPart(script, voiceName, language)],
               },
             ],
             generationConfig: {
               responseModalities: ["AUDIO"],
               speechConfig: {
+                ...(languageCode ? { languageCode } : {}),
                 voiceConfig: {
                   prebuiltVoiceConfig: {
                     voiceName,
@@ -340,11 +342,20 @@ Video context: ${JSON.stringify({
           process.env.DEEPGRAM_API_KEY ||
             process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY
         );
+
+        // Map app language → Deepgram language code.
+        // For Hinglish/Marathlish the audio is spoken in the target language,
+        // so we transcribe in that language to get correct Devanagari captions.
+        const deepgramLanguage =
+          language === "hindi"   ? "hi" :
+          language === "marathi" ? "mr" :
+          "en-US";
+
         const { result, error } = await withRetry(
           () =>
             deepgram.listen.prerecorded.transcribeUrl(
               { url: GenerateAudioFile },
-              { model: "nova-3" }
+              { model: "nova-3", language: deepgramLanguage }
             ),
           { attempts: 3, baseDelayMs: 1500, label: "deepgram" }
         );
