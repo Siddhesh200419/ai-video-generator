@@ -167,6 +167,16 @@ function VideoInfo({ videoData, onDelete, deleting }) {
             <span className="text-muted-foreground">Style</span>
             <span className="font-medium">{videoData?.videoStyle}</span>
           </div>
+          <div className="text-sm border-b flex py-4 justify-between items-center">
+            <span className="text-muted-foreground">Language</span>
+            <span className="font-medium">
+              {videoData?.language === "hindi"
+                ? "🇮🇳 Hindi"
+                : videoData?.language === "marathi"
+                ? "🇮🇳 Marathi"
+                : "🇬🇧 English"}
+            </span>
+          </div>
           <div className="text-sm flex py-4 justify-between items-center">
             <span className="text-muted-foreground">Voice</span>
             <span className="font-medium">{videoData?.voice || "Default"}</span>

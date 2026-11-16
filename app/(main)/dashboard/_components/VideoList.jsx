@@ -181,6 +181,7 @@ function VideoList() {
                       progress: video.status === "completed" ? 100 : v.progress,
                       downloadUrl: video.downloadUrl ?? v.downloadUrl,
                       thumbnailUrl: video.images?.[0] ?? v.thumbnailUrl,
+                      language: video.language ?? v.language,
                     }
                   : v
               )
@@ -255,6 +256,34 @@ function VideoList() {
       default:
         return (
           <Badge className="bg-accent text-accent-foreground">Pending</Badge>
+        );
+    }
+  };
+
+  const getLanguageBadge = (language) => {
+    const lang = (language || "english").toLowerCase();
+    switch (lang) {
+      case "marathi":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold bg-background/90 text-orange-600 dark:text-orange-400 border border-orange-500/40 shadow-xs backdrop-blur-md">
+            <span className="text-sm leading-none">🇮🇳</span>
+            <span>Marathi</span>
+          </span>
+        );
+      case "hindi":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold bg-background/90 text-amber-600 dark:text-amber-400 border border-amber-500/40 shadow-xs backdrop-blur-md">
+            <span className="text-sm leading-none">🇮🇳</span>
+            <span>Hindi</span>
+          </span>
+        );
+      case "english":
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold bg-background/90 text-blue-600 dark:text-blue-400 border border-blue-500/40 shadow-xs backdrop-blur-md">
+            <span className="text-sm leading-none">🇬🇧</span>
+            <span>English</span>
+          </span>
         );
     }
   };
@@ -341,6 +370,11 @@ function VideoList() {
                   <div
                     className={`${getBgColor(index)} flex relative p-6 justify-center items-center h-80 overflow-hidden`}
                   >
+                    {/* Language Badge */}
+                    <div className="absolute top-3 left-3 z-10 pointer-events-none">
+                      {getLanguageBadge(video?.language)}
+                    </div>
+
                     {video?.thumbnailUrl ? (
                       <>
                         <div className="absolute inset-0 bg-muted" />
