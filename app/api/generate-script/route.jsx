@@ -15,6 +15,9 @@ export async function POST(req) {
     const theme =
       typeof body.theme === "string" ? body.theme.trim() : "";
 
+    const language =
+      typeof body.language === "string" ? body.language.trim().toLowerCase() : "english";
+
     // Validate input
     if (!topic && !title && !theme) {
       return NextResponse.json(
@@ -25,6 +28,25 @@ export async function POST(req) {
       );
     }
 
+    const LANGUAGE_INSTRUCTIONS = {
+      hindi: `
+LANGUAGE:
+- Write both scripts in Hinglish using Roman script (English alphabet only, no Devanagari).
+- Hinglish means conversational Hindi words and sentence rhythm written in English letters.
+- Example tone: "Aaj hum baat karenge ek aisi cheez ke baare mein jo shayad aapne socha bhi nahi hoga..."
+- Keep it natural — mix Hindi words with just enough English where it feels native.
+- Do NOT write in Devanagari script. Roman letters only.`,
+      marathi: `
+LANGUAGE:
+- Write both scripts in Marathlish using Roman script (English alphabet only, no Devanagari).
+- Marathlish means conversational Marathi words and sentence rhythm written in English letters.
+- Example tone: "Aaj aapan eka ashya goshtibaaddal bolnar aahot, jo tumhi adhee aiku nahi..."
+- Keep it natural — mix Marathi words with just enough English where it feels native.
+- Do NOT write in Devanagari script. Roman letters only.`,
+    };
+
+    const languageInstruction = LANGUAGE_INSTRUCTIONS[language] || "";
+
     const PROMPT = `
 Generate exactly two distinct YouTube Shorts voiceover scripts.
 
@@ -33,7 +55,7 @@ USER INPUT:
 Topic: ${topic || "Not provided"}
 Video Title: ${title || "Not provided"}
 Theme/Genre: ${theme || "Not provided"}
-
+${languageInstruction}
 INPUT PRIORITY:
 - Topic defines the main subject of the video.
 - Video Title defines the specific angle, hook, and story direction.

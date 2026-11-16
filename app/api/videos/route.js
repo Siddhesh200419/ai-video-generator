@@ -20,6 +20,7 @@ const listColumns = {
   currentStep: videoData.currentStep,
   progress: videoData.progress,
   downloadUrl: videoData.downloadUrl,
+  language: videoData.language,
   createdAt: videoData.createdAt,
   thumbnailUrl: sql`${videoData.images}->>0`.as("thumbnail_url"),
 };

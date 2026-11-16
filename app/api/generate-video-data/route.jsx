@@ -7,7 +7,7 @@ import { videoJobEvent } from "@/lib/videoJobs";
 export async function POST(req) {
   try {
     const body = await req.json();
-    let { title, topic, script, videoStyle, caption, voice, uid, createdBy } = body;
+    let { title, topic, script, videoStyle, caption, voice, language, uid, createdBy } = body;
 
     // Sanitize title so single-letter artifacts like 'w' never persist
     if (!title || title.trim() === "w" || title.trim() === "W") {
@@ -15,6 +15,11 @@ export async function POST(req) {
     } else {
       title = title.trim();
     }
+
+    const resolvedLanguage =
+      typeof language === "string" && ["english", "hindi", "marathi"].includes(language.toLowerCase())
+        ? language.toLowerCase()
+        : "english";
 
     // 1. Validate required fields
     if (!uid || !title || !topic || !script || !videoStyle || !voice) {
@@ -31,6 +36,7 @@ export async function POST(req) {
         videoStyle,
         caption,
         voice,
+        language: resolvedLanguage,
         uid,
         createdBy,
         status: "pending",
