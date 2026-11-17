@@ -1,276 +1,214 @@
-# ReelForge — AI YouTube Short Video Generator
+# ReelForge
 
-An automated SaaS platform that turns a topic or idea into a fully produced,
-captioned vertical YouTube Short — script, voiceover, synchronized captions,
-AI-generated scenes, and a rendered HD MP4.
+ReelForge turns an idea into a short vertical video. You choose a topic, pick a script and voice, and set the visual style. The app then creates the narration, scene images, and captions, and puts them together into an MP4 you can download.
 
-The system orchestrates the entire production lifecycle: high-retention script
-generation, multi-character voiceover synthesis, word-accurate captions,
-scene-by-scene visual generation, and programmatic cloud rendering.
+It uses Next.js for the website, Inngest for background jobs, and Remotion on AWS Lambda to render the finished video. The current output is a 9:16 video at 720 × 1280 pixels and 30 frames per second. Its length follows the narration's caption timestamps.
 
----
+## Creating a video
 
-## Architecture Overview
+1. **Start with a topic.** Add a title, choose a genre and language, and generate two script options. Each generated script contains 65–85 words. Choose the one you want to use before continuing.
+2. **Choose a voice.** Listen to the ten included voice samples and select a narrator. Samples are stored locally, so playing them does not make a new text-to-speech request.
+3. **Set up captions.** Choose a font, color, and position. A live preview helps you see how your choices look in a vertical frame.
+4. **Pick a visual style.** Choose the look you want for the generated scenes, such as cinematic, anime, or watercolor.
+5. **Review and generate.** Check your choices and start the job. The progress page shows updates from the background pipeline. Once rendering finishes, you can watch and download the video.
 
-The app couples a Next.js 15 web interface and API layer with Inngest
-serverless background orchestration, multi-model AI pipelines, and AWS-distributed
-video rendering.
+Your draft is saved in the browser as you work. The dashboard and video library let you browse videos, filter by status, and delete entries. The app also includes email/password and Google sign-in through Firebase, along with light and dark themes.
 
-```
-[ User Input: Topic / Title / Theme / Voice / Captions / Style ]
-                         │
-                         ▼
-        [ Multi-Step Creation Wizard & Live Preview ]
-      (Script -> Voice -> Captions -> Theme -> Review)
-                         │
-                         ▼
-               [ Next.js API Routes ]
-        (Validate input, insert record with 'pending')
-                         │
-                         ▼
-           [ Neon PostgreSQL + Drizzle ORM ]
-                         │
-                         ▼
-          [ Inngest Background Pipeline ]
-                         │
-       ┌─────────────────┴─────────────────┐
-       ▼                                   ▼
-[ Google Gemini TTS ]              [ Groq (GPT-OSS) ]
-(synthesize voice -> WAV -> S3)    (scene image prompts)
-       │                                   │
-       │                                   ▼
-       │                     [ Cloudflare Workers AI FLUX Schnell ]
-       │                     (scene images -> S3)
-       │                                   │
-       └───────────────┬───────────────────┘
-                       ▼
-              [ Deepgram Nova-3 ]
-        (word-level caption timestamps)
-                       │
-                       ▼
-         [ Neon PostgreSQL + Drizzle ORM ]
-          (assets saved, status -> 'generating')
-                       │
-                       ▼
-            [ Remotion Lambda (AWS) ]
-     (parallel frame rendering, Ken Burns
-        transitions, audio + caption stitch)
-                       │
-                       ▼
-            [ S3 Output Storage (MP4) ]
-                       │
-                       ▼
-     [ Dashboard / Video Library / Video Player ]
-```
+### Languages
 
----
+The creation flow offers English, Hindi, and Marathi. Hindi scripts use conversational Hinglish written in Roman letters; Marathi scripts use the same approach for Marathi, called Marathlish in the app. The selected language is passed to both voice generation and caption transcription. Hindi and Marathi transcription requests target their respective languages, so captions may use Devanagari even though the generated scripts use Roman letters.
 
-## Key Features
+### Current limits
 
-- **AI scriptwriting engine** — generates two distinct, high-retention 30-second
-  scripts per prompt (Hook → Build → Turn → Payoff) via Groq.
-- **Natural AI voiceovers** — Google Gemini TTS with 10 selectable voice
-  personas, normalized to 16-bit PCM WAV by a custom converter.
-- **Synchronized dynamic captions** — Deepgram Nova-3 word-level timestamps with
-  configurable font, size, color, and vertical alignment.
-- **Multi-scene AI visuals** — Cloudflare Workers AI FLUX Schnell generates
-  9:16 vertical scenes, matched to a chosen visual style.
-- **Guided creation wizard** — Script → Voice → Captions → Theme → Review, with a
-  real-time mobile preview reflecting style and caption settings instantly.
-- **Live generation progress** — a progress screen that mirrors the *real*
-  pipeline (`currentStep` + `progress` written by Inngest), not a simulated bar.
-- **Dual-engine playback** — in-browser Remotion Player preview plus serverless
-  Remotion Lambda export to a downloadable HD MP4.
-- **Video library & dashboard** — paginated grid with status badges, tab filters,
-  search-free quick scanning, and inline delete.
-- **Authentication** — Firebase Auth (email/password + Google) with automatic
-  user sync to PostgreSQL.
-- **Theming** — dark/light mode via Next Themes, styled with Tailwind CSS v4 and
-  Radix UI primitives.
+Playback speed, mood, and film grain controls appear in the creation flow, but their values are not passed to the final render. Caption font, color, and position are applied during rendering; the decorative caption presets shown in the editor are not fully reproduced in the exported video.
 
----
+## Running the project locally
 
-## Technology Stack
+You will need Node.js and npm. The repository's CI workflow and Docker configuration use Node.js 22.
 
-| Layer | Choices |
-|---|---|
-| **Framework** | Next.js 15 (App Router), React 18, JavaScript |
-| **Styling / UI** | Tailwind CSS v4, Radix UI, Lucide React, CVA |
-| **Script & storyboard AI** | Groq SDK — `openai/gpt-oss-120b` (script), `openai/gpt-oss-20b` (prompts) |
-| **Voice synthesis** | Google Gemini — `gemini-3.8-flash-tts` |
-| **Scene images** | Cloudflare Workers AI — `@cf/black-forest-labs/flux-1-schnell` |
-| **Captions** | Deepgram Nova-3 |
-| **Video** | Remotion, `@remotion/player`, `@remotion/lambda` |
-| **Orchestration** | Inngest |
-| **Database / ORM** | Neon Serverless PostgreSQL, Drizzle ORM + Drizzle Kit |
-| **Auth** | Firebase Authentication |
-| **Storage** | Amazon S3 (`@aws-sdk/client-s3`) |
+The app depends on cloud services even when you run it locally. Before generating a video, configure the following:
 
----
+| Service | What it does |
+| --- | --- |
+| Firebase Authentication | Handles sign-in |
+| Neon PostgreSQL | Stores users, video settings, job status, and asset links |
+| Groq | Writes scripts and scene prompts |
+| Google Gemini | Generates the voiceover |
+| Cloudflare Workers AI | Generates scene images with FLUX Schnell |
+| Deepgram | Transcribes the voiceover and provides word timestamps |
+| Amazon S3 | Stores audio, images, and rendered videos |
+| Remotion Lambda | Renders the MP4 on AWS |
+| Inngest | Runs and recovers background jobs |
 
-## Database Schema
+The [setup guide](SETUP.md) has more detail on AWS configuration and deployment.
 
-Defined in [configs/schema.js](configs/schema.js) and managed with Drizzle Kit.
+### 1. Install dependencies
 
-### `users`
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | `defaultRandom()` |
-| `name` | VARCHAR(255) | Not null |
-| `email` | VARCHAR(255) | Not null, unique |
-| `picture_url` | TEXT | Not null |
-| `credits` | INTEGER | Not null, default `3` |
-| `created_at` | TIMESTAMPTZ | Not null, default `now()` |
-
-### `video_data`
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | `defaultRandom()` |
-| `title` | VARCHAR(255) | Not null, sanitized on insert |
-| `topic` | TEXT | Not null |
-| `script` | TEXT | Not null |
-| `video_style` | VARCHAR(100) | Not null |
-| `voice` | VARCHAR(100) | Not null |
-| `caption` | JSONB | Caption styling (font, color, position) |
-| `images` | JSONB | Array of S3 scene-image URLs |
-| `audio_url` | TEXT | Voiceover WAV URL in S3 |
-| `caption_json` | JSONB | Deepgram word-level timestamps |
-| `download_url` | TEXT | Rendered MP4 URL in S3 |
-| `status` | VARCHAR(50) | `pending` \| `generating` \| `completed` \| `failed` |
-| `error_message` | TEXT | Populated when `status = 'failed'` |
-| `current_step` | VARCHAR(50) | `queued` \| `audio` \| `scenes` \| `captions` \| `render` \| `done` |
-| `progress` | INTEGER | 0–100, driven by the pipeline |
-| `uid` | UUID FK | → `users.id`, cascade delete |
-| `created_by` | VARCHAR(255) | User email |
-| `created_at` | TIMESTAMPTZ | Default `now()` |
-
-Indexes: `(uid, created_at)` — serves the dashboard query (filter by user, newest
-first) and still covers user-only lookups via its leftmost prefix.
-
----
-
-## Generation Pipeline
-
-The pipeline lives in
-[app/api/inngest/function.js](app/api/inngest/function.js) and is triggered by the
-`generate-video-data` event.
-
-| Step | What happens | Progress |
-|---|---|---|
-| 1 | **Audio** — Gemini TTS synthesizes the script, converted to WAV and uploaded to S3 | 10% |
-| 2 | **Prompts** — Groq splits the script into 4–5 scene image prompts *(runs in parallel with step 1)* | — |
-| 3 | **Scenes** — FLUX generates each image and uploads it to S3 as soon as prompts are ready, without waiting for audio | 35% |
-| 4 | **Captions** — Deepgram transcribes the audio as soon as its upload finishes, without waiting for scenes | 60% |
-| 5 | **Persist** — audio, images, and captions saved; status → `generating` | — |
-| 6 | **Render** — Remotion Lambda renders the vertical MP4 | 65% |
-| 7 | **Finalize** — Remotion progress is polled and mirrored to the DB; `download_url` saved, status → `completed` | 65→100% |
-
-Asset preparation runs in two overlapping branches: `audio → captions` and
-`prompts → images`. Rendering starts only after both branches finish. Image
-request limits, Lambda concurrency, providers, and render quality are unchanged.
-
-The UI polls `GET /api/video/[id]`. Progress milestones stay ordered even when
-asset branches finish out of order: 35% means audio and prompts are ready; 60%
-means images are also ready; 65% means all assets are ready for rendering.
-
-Run `npm run test:pipeline` to verify branch scheduling, failure handling, and
-Inngest replay with mocked services (no cloud calls or video rendering).
-
----
-
-## Project Structure
-
-```
-├── _context/                     # Auth + creation-wizard React contexts
-├── app/
-│   ├── (main)/
-│   │   ├── script-step/          # 1. Topic + AI script generation
-│   │   ├── voice-step/           # 2. Voice persona + playback speed
-│   │   ├── captions-step/        # 3. Caption styling
-│   │   ├── theme-step/           # 4. Visual style
-│   │   ├── review-step/          # 5. Final review + trigger render
-│   │   ├── create-new-video/     # Consolidated tabbed creator
-│   │   ├── dashboard/            # Video grid (paginated, tab filters)
-│   │   ├── my-videos/            # Video library
-│   │   ├── generation-progress/  # Live pipeline status
-│   │   ├── play-video/[videoId]/ # Remotion player + metadata
-│   │   ├── video-result/         # Completion + MP4 download
-│   │   └── _components/          # AppHeader, AppSidebar
-│   ├── api/
-│   │   ├── generate-audio/       # Gemini TTS
-│   │   ├── generate-script/      # Groq script generation
-│   │   ├── generate-video-data/  # Create record + dispatch Inngest job
-│   │   ├── inngest/              # Pipeline definition + webhook route
-│   │   ├── user/                 # User upsert on auth
-│   │   ├── video/[id]/           # Single video GET + DELETE
-│   │   ├── videos/               # Paginated video list
-│   │   └── voices/               # Static voice catalogue (cached)
-│   ├── log-in/ · sign-up/        # Auth pages
-│   └── layout.js · page.js       # Root layout + landing page
-├── components/ui/                # Radix-based component library
-├── config/
-│   ├── AiModel.jsx               # Groq config + system prompts + model tiering
-│   └── firebaseConfig.jsx        # Firebase client init
-├── configs/
-│   ├── db.js                     # Neon serverless client
-│   └── schema.js                 # Drizzle table definitions
-├── inngest/client.js             # Inngest client
-├── lib/
-│   ├── pcmToWav.js               # PCM → RIFF/WAV header converter
-│   ├── storage.js                # S3 upload/delete helper
-│   ├── videoProgress.js          # Shared pipeline step model
-│   └── utils.js                  # className merge helper
-└── remotion/                     # Root, Composition, entry point
-```
-
----
-
-## Performance & Reliability Notes
-
-The pipeline and dashboard are tuned to stay predictable as usage grows:
-
-- **Bounded image concurrency** — scene images are generated with at most
-  `IMAGE_CONCURRENCY` (default 3) requests in flight, instead of fanning out to
-  every scene at once.
-- **Targeted retries** — FLUX, Gemini TTS, and Deepgram calls are retried with
-  backoff *inside* their step, so one transient failure does not fail the whole
-  step and force every sibling call to re-run (and re-spend).
-- **Model tiering** — the creative script keeps the larger model while structured
-  scene-prompt extraction uses a cheaper, faster model.
-- **Paginated, column-scoped list API** — `GET /api/videos` returns one page at a
-  time and omits heavy columns (`caption_json`, `script`), extracting only the
-  first scene image for the thumbnail.
-- **Server-side tab filtering** — status tabs filter in SQL so pagination stays
-  correct on every tab.
-- **Visibility-aware polling** — client polling pauses while the tab is hidden
-  and refreshes immediately on return.
-- **Cached static endpoints** — the voice catalogue is served with a long
-  `Cache-Control` window.
-- **Lean client bundle** — native `Intl` date formatting replaces moment.js, and
-  the UI uses a single `cn` helper from `lib/utils`.
-
----
-
-## Getting Started
-
-See **[SETUP.md](SETUP.md)** for the full local setup and deployment guide.
-
-Quick start:
+From the project directory, run:
 
 ```bash
 npm install
-npx drizzle-kit push                 # create tables in Neon
-# ... deploy the Remotion composition + fill in .env.local (see SETUP.md)
-npm run dev                          # http://localhost:3000
-npx inngest-cli@latest dev           # http://localhost:8288 (second terminal)
 ```
 
----
+### 2. Configure the environment
+
+Create `.env.local` in the project root and fill in these values:
+
+```dotenv
+DATABASE_URL=your-neon-connection-string
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-web-api-key
+
+GROQ_API_KEY=your-groq-api-key
+GEMINI_API_KEY=your-gemini-api-key
+CLOUDFLARE_ACCOUNT_ID=your-cloudflare-account-id
+CLOUDFLARE_API_TOKEN=your-cloudflare-api-token
+DEEPGRAM_API_KEY=your-deepgram-api-key
+
+REMOTION_AWS_ACCESS_KEY_ID=your-aws-access-key-id
+REMOTION_AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
+AWS_SERVE_URL=your-deployed-remotion-site-url
+ASSET_BUCKET=your-s3-asset-bucket
+ASSET_REGION=us-east-1
+```
+
+Use your own Firebase project settings in [config/firebaseConfig.jsx](config/firebaseConfig.jsx). Only the API key comes from the environment; the other Firebase settings are currently defined in that file. Enable email/password and Google sign-in in your Firebase project.
+
+Keep AI service keys in the server-side variables shown above. The code still accepts legacy `NEXT_PUBLIC_GEMINI_API_KEY` and `NEXT_PUBLIC_DEEPGRAM_API_KEY` values, but new setups should use `GEMINI_API_KEY` and `DEEPGRAM_API_KEY`.
+
+These optional settings control models and concurrency:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GROQ_SCRIPT_MODEL` | `openai/gpt-oss-120b` | Model used to write scripts |
+| `GROQ_PROMPT_MODEL` | `openai/gpt-oss-20b` | Model used to write scene prompts |
+| `IMAGE_CONCURRENCY` | `3` | Maximum simultaneous image requests per job |
+| `RENDER_CONCURRENCY` | `8` | Number of parallel Lambda render chunks |
+
+If `ASSET_BUCKET` is omitted, the storage helper derives it from `AWS_SERVE_URL`. Asset storage defaults to `us-east-1`, and the render pipeline currently uses that region explicitly.
+
+### 3. Apply the database schema
+
+Drizzle reads `DATABASE_URL` from `.env.local`. Run:
+
+```bash
+npx drizzle-kit push
+```
+
+This applies the schema in [configs/schema.js](configs/schema.js), including the video language field. If you already have a database from an earlier version, review the proposed changes before applying them.
+
+You can browse the database with:
+
+```bash
+npx drizzle-kit studio
+```
+
+### 4. Configure video rendering
+
+Deploy the Remotion Lambda function and the composition at [remotion/index.js](remotion/index.js), following [SETUP.md](SETUP.md). Set `AWS_SERVE_URL` to the deployed site's URL.
+
+The app's audio and image URLs must be readable by Deepgram and the renderer. The storage helper tries a public-read upload, then retries without an ACL if the bucket disables ACLs. In that case, access depends on the bucket policy.
+
+Changes to the Remotion composition require redeploying the Remotion site as well as updating the app.
+
+### 5. Start both development servers
+
+Start Next.js in one terminal:
+
+```bash
+npm run dev
+```
+
+Start Inngest in a second terminal:
+
+```bash
+npx inngest-cli@latest dev -u http://localhost:3000/api/inngest
+```
+
+Open the app at [localhost:3000](http://localhost:3000). You can inspect background jobs at [localhost:8288](http://localhost:8288).
+
+Sign in and create a video to check the full flow. Both servers need to be running for local video generation.
+
+### Using Docker Compose
+
+The repository includes a Compose setup for Next.js and the Inngest development server:
+
+```bash
+docker compose up
+```
+
+It expects both `.env` and `.env.local` to exist. You still need to configure the cloud services, apply the database schema, and deploy Remotion separately. Docker starts the two local services; it does not provision those dependencies.
+
+## How generation works
+
+The API saves a video record before sending a `generate-video-data` event to Inngest. The background job then prepares assets in two parallel branches:
+
+```text
+Script -> Gemini voiceover -> S3 audio -> Deepgram captions
+Script -> Groq scene prompts -> FLUX images -> S3 images
+                                      |
+                        Both branches finish
+                                      |
+                          Remotion Lambda render
+                                      |
+                           MP4 saved to S3
+                                      |
+                         Watch or download in app
+```
+
+Groq is prompted to plan five scenes, or four for an unusually short script. Remotion combines the generated images with pan and zoom motion, narration, and timed captions.
+
+The pipeline writes progress to the database, and the interface polls for updates. Jobs move from `pending` to `generating`, then to `completed` or `failed`. Rendering begins at the 65% milestone, after all assets are ready, and subsequent progress comes from Remotion.
+
+The main implementation is in [app/api/inngest/function.js](app/api/inngest/function.js).
+
+### Retries and recovery
+
+Temporary provider and upload failures have retry handling. Render progress is checked using durable five-second waits, so a server request does not have to stay open while the video renders. Rendering has a persisted 15-minute deadline.
+
+A separate `recover-video-jobs` function runs every minute. It resends pending jobs older than one minute using the same event ID, allowing a saved request to recover if the original dispatch failed. The API returns HTTP 202 with the saved record ID when dispatch is deferred.
+
+Pending jobs expire after 30 minutes. Generating jobs have a two-hour safety timeout measured from creation. Completed and failed records are protected from late pipeline updates. These recovery checks depend on Inngest and the database being available.
+
+Deleting a video removes its database entry and attempts to delete its audio and scene images. The rendered MP4 is not deleted by that endpoint; its retention depends on the render bucket's lifecycle configuration.
+
+## Working on the code
+
+The project uses Next.js 15, React 18, JavaScript, Tailwind CSS 4, and Radix UI. Database access uses Drizzle ORM with Neon PostgreSQL.
+
+| Location | What you will find |
+| --- | --- |
+| `app/(main)/` | Creation steps, dashboard, video library, progress, and playback pages |
+| `app/api/` | Script and audio generation, video records, user sync, and Inngest routes |
+| `app/_components/RemotionComposition.jsx` | The video composition used for preview and export |
+| `_context/` | Authentication context and browser-saved creation state |
+| `components/creation/` | Shared step navigation and live preview |
+| `config/` | AI prompts, model settings, and Firebase configuration |
+| `configs/` | Database connection and active Drizzle schema |
+| `drizzle/` | SQL migrations and schema snapshots |
+| `inngest/` | Shared Inngest client |
+| `lib/` | Storage, audio conversion, voice direction, progress, and job recovery helpers |
+| `public/voices/` | Recorded samples for the voice picker |
+| `remotion/` | Render entry point and composition registration |
+| `tests/` | Tests for generation and job recovery |
+
+The database has two main tables: `users` and `video_data`. Video records store the selected language and settings, generated asset URLs, caption timestamps, progress, errors, and the final download URL. The full definitions live in [configs/schema.js](configs/schema.js).
+
+### Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server |
+| `npm test` | Run the generation and job recovery tests with mocked services |
+| `npm run lint` | Run the configured Next.js lint command |
+| `npm run build` | Create a production build |
+| `npm start` | Serve a production build |
+
+The tests cover voice direction, scene prompts, failure handling, render deadlines, replay after a restart, and recovery from failed event dispatch. They do not call cloud services or render a real video.
 
 ## Deployment
 
-The app targets **Vercel** for the Next.js layer, plus Neon, Inngest Cloud, and
-AWS (Remotion Lambda + S3). Full instructions are in
-**[SETUP.md](SETUP.md#-production-deployment)**.
+The documented deployment uses Vercel for Next.js, Inngest Cloud for background jobs, and the same managed database, AI, and AWS services used during development.
+
+Configure the app's environment variables on the host, plus `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` for production. Register `https://your-domain/api/inngest` with Inngest and confirm that both `generate-video-data` and `recover-video-jobs` are registered. The Remotion site and Lambda function are deployed separately.
+
+See [SETUP.md](SETUP.md) for the deployment steps and troubleshooting notes.
